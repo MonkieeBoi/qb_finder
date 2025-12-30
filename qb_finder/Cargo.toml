@@ -1,0 +1,8 @@
+[package]
+name = "qb_finder"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+compute = { workspace = true }
+srs-4l = { workspace = true }

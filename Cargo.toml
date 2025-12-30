@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "qb_finder"
+]
+resolver = "2"
+
+[workspace.dependencies]
+compute = { git = "https://github.com/wirelyre/tetra-tools" }
+srs-4l = { git = "https://github.com/wirelyre/tetra-tools" }
