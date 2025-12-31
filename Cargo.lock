@@ -212,6 +212,7 @@ name = "qb_finder"
 version = "0.1.0"
 dependencies = [
  "compute",
+ "smallvec",
  "srs-4l",
 ]
 
