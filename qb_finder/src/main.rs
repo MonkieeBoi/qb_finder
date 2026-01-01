@@ -1,6 +1,9 @@
+use itertools::Itertools;
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{Cursor, Read};
+use std::time::Instant;
 
 use srs_4l::{
     board_list,
@@ -13,7 +16,7 @@ use crate::queue::Bag;
 pub mod queue;
 pub mod solver;
 
-fn parse_pattern(pattern: &str) -> Vec<Bag> {
+fn pattern_bags(pattern: &str) -> Vec<Bag> {
     let mut bags = Vec::new();
     for bag in pattern.split(",") {
         let shapes = bag
@@ -24,6 +27,23 @@ fn parse_pattern(pattern: &str) -> Vec<Bag> {
         bags.push(Bag::new(&shapes, bag.len() as u8));
     }
     bags
+}
+
+fn expand_pattern(pattern: &str) -> Vec<String> {
+    pattern
+        .split(",")
+        .map(|group| {
+            let len = group.len();
+            group
+                .chars()
+                .permutations(len)
+                .unique()
+                .map(|p| p.into_iter().collect::<String>())
+                .collect_vec()
+        })
+        .multi_cartesian_product()
+        .map(|prod| prod.join(""))
+        .collect()
 }
 
 fn parse_shape(shape: char) -> Option<Shape> {
@@ -39,38 +59,62 @@ fn parse_shape(shape: char) -> Option<Shape> {
     }
 }
 
-fn print_board(board: &BrokenBoard) {
-    let mut table = [' '; 256];
-    for i in 0..256 {
-        table[i] = i as u8 as char;
+fn emoji_map(c: char) -> char {
+    match c {
+        'I' => '📘',
+        'J' => '🟦',
+        'L' => '🟧',
+        'O' => '🟨',
+        'S' => '🟩',
+        'T' => '🟪',
+        'Z' => '🟥',
+        'G' => '⬜',
+        '_' => '⬛',
+        _ => c,
     }
-    table['I' as usize] = '📘';
-    table['J' as usize] = '🟦';
-    table['L' as usize] = '🟧';
-    table['O' as usize] = '🟨';
-    table['S' as usize] = '🟩';
-    table['T' as usize] = '🟪';
-    table['Z' as usize] = '🟥';
-    table['G' as usize] = '⬜';
-    table['_' as usize] = '⬛';
+}
 
+fn print_board(board: &BrokenBoard) {
     let mut str = String::new();
     solver::print(&board, &mut str);
     str = str
         .chars()
-        .map(|c| {
-            if (c as usize) < 256 {
-                table[c as usize]
-            } else {
-                c
-            }
-        })
+        .map(emoji_map)
         .collect::<Vec<char>>()
         .chunks(10)
         .map(|chunk| chunk.iter().collect::<String>())
         .collect::<Vec<String>>()
         .join("\n");
     println!("{str}")
+}
+
+fn is_hundred(
+    legal_boards: &HashSet<Board>,
+    setup: &BrokenBoard,
+    solve_queues: &Vec<Vec<Bag>>,
+    save: Option<Shape>,
+    solve_save_count: usize,
+) -> bool {
+    solve_queues.iter().all(|q| {
+        let solves = solver::compute(&legal_boards, &setup, &q, true, Physics::Jstris);
+
+        if solves.is_empty() {
+            return false;
+        }
+
+        let Some(save_shape) = save else {
+            return true;
+        };
+
+        solves.iter().any(|solve| {
+            let save_count = solve
+                .pieces
+                .iter()
+                .filter(|piece| piece.shape == save_shape)
+                .count();
+            solve_save_count == 0 || solve_save_count - 1 == save_count
+        })
+    })
 }
 
 fn main() {
@@ -83,17 +127,56 @@ fn main() {
         .unwrap()
         .into_iter()
         .collect();
-
     println!("Loaded legal_boards.");
 
     let field_hash = 0;
     let start = BrokenBoard::from_garbage(field_hash);
+    let buildq = "TLSZ";
+    let solveq = "OLJ,TISZ";
+    let save = 'T';
 
-    let queue = parse_pattern("TLSZ");
+    let mut setups = solver::compute(
+        &boards,
+        &start,
+        &pattern_bags(buildq),
+        true,
+        Physics::Jstris,
+    );
 
-    let solutions = solver::compute(&boards, &start, &queue, true, Physics::Jstris);
+    let start_load = Instant::now();
+    let solve_queues = expand_pattern(solveq)
+        .into_iter()
+        .map(|q| {
+            q.chars()
+                .map(|c| {
+                    let shape = parse_shape(c).expect("Invalid solve pattern");
+                    Bag::new(&[shape], 1)
+                })
+                .collect()
+        })
+        .collect();
+    let save_count = solveq.chars().filter(|x| *x == save).count();
+    let parsed_save = parse_shape(save);
+    // setups.retain(|setup| is_hundred(&boards, &setup, solveq, save));
+    setups = setups
+        .into_par_iter()
+        .filter(|setup| {
+            is_hundred(
+                &boards,
+                &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
+                &solve_queues,
+                parsed_save,
+                save_count,
+            )
+        })
+        .collect();
+    println!(
+        "Found {:?} setups in {:?}",
+        setups.len(),
+        start_load.elapsed()
+    );
 
-    for board in &solutions {
+    for board in &setups {
         print_board(&board);
         println!();
     }

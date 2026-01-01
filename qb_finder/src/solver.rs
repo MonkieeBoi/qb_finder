@@ -16,7 +16,7 @@ fn scan(
     legal_boards: &HashSet<Board>,
     start: Board,
     bags: &[Bag],
-    piece_count: usize,
+    _piece_count: usize,
     can_hold: bool,
     place_last: bool,
     physics: Physics,
@@ -26,15 +26,14 @@ fn scan(
     let mut prev: ScanStage = HashMap::new();
     prev.insert(start, (bags.first().unwrap().init_hold(), SmallVec::new()));
 
-    for (stage, (bag, i)) in bags
+    for (bag, i) in bags
         .iter()
         .flat_map(|b| (0..b.count).into_iter().map(move |i| (b, i)))
         .skip(1)
-        .enumerate()
     {
         let mut next: ScanStage = HashMap::new();
 
-        for (board_idx, (&old_board, (old_queues, _preds))) in prev.iter().enumerate() {
+        for (&old_board, (old_queues, _preds)) in prev.iter() {
             for shape in Shape::ALL {
                 let is_first = i == 0;
                 let new_queues = bag.take(old_queues, shape, is_first, can_hold);
@@ -68,7 +67,7 @@ fn scan(
     if place_last {
         let mut next: ScanStage = HashMap::new();
 
-        for (board_idx, (&old_board, (old_queues, _preds))) in prev.iter().enumerate() {
+        for (&old_board, (old_queues, _preds)) in prev.iter() {
             for shape in Shape::ALL {
                 if old_queues.iter().any(|queue| queue.hold() == Some(shape)) {
                     for (_, new_board) in Placements::place(old_board, shape, physics).canonical() {
@@ -119,7 +118,7 @@ fn place(
     culled: &HashSet<Board>,
     start: BrokenBoard,
     bags: &[Bag],
-    piece_count: usize,
+    _piece_count: usize,
     can_hold: bool,
     place_last: bool,
     physics: Physics,
@@ -127,15 +126,14 @@ fn place(
     let mut prev = HashMap::new();
     prev.insert(start, bags.first().unwrap().init_hold());
 
-    for (stage, (bag, i)) in bags
+    for (bag, i) in bags
         .iter()
         .flat_map(|b| (0..b.count).into_iter().map(move |i| (b, i)))
         .skip(1)
-        .enumerate()
     {
         let mut next: HashMap<BrokenBoard, SmallVec<[QueueState; 7]>> = HashMap::new();
 
-        for (board_idx, (old_board, old_queues)) in prev.iter().enumerate() {
+        for (old_board, old_queues) in prev.iter() {
             for shape in Shape::ALL {
                 let is_first = i == 0;
                 let new_queues = bag.take(old_queues, shape, is_first, can_hold);
@@ -165,7 +163,7 @@ fn place(
     if place_last {
         let mut next: HashMap<BrokenBoard, SmallVec<[QueueState; 7]>> = HashMap::new();
 
-        for (board_idx, (old_board, old_queues)) in prev.iter().enumerate() {
+        for (old_board, old_queues) in prev.iter() {
             for shape in Shape::ALL {
                 if old_queues.iter().any(|queue| queue.hold() == Some(shape)) {
                     for (piece, new_board) in
