@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::fs::File;
 use std::io::{Cursor, Read};
 use std::time::Instant;
@@ -11,8 +11,10 @@ use srs_4l::{
     gameplay::{Board, Physics, Shape},
 };
 
+use crate::minimals::min_cover_size;
 use crate::queue::Bag;
 
+pub mod minimals;
 pub mod queue;
 pub mod solver;
 
@@ -117,6 +119,52 @@ fn is_hundred(
     })
 }
 
+fn min_count(
+    legal_boards: &HashSet<Board>,
+    setup: &BrokenBoard,
+    pattern: &str,
+    universe: &BTreeSet<String>,
+    save: Option<Shape>,
+    solve_save_count: usize,
+) -> usize {
+    let board = &BrokenBoard::from_garbage(setup.to_broken_bitboard().0);
+    let mut solves = solver::compute(
+        legal_boards,
+        board,
+        &pattern_bags(pattern),
+        true,
+        Physics::Jstris,
+    );
+
+    if let (Some(s), true) = (save, solve_save_count > 0) {
+        let target = solve_save_count - 1;
+        solves.retain(|sol| sol.pieces.iter().filter(|p| p.shape == s).count() == target);
+    }
+
+    let pattern_bytes = pattern.replace(",", "").into_bytes();
+
+    let covering_queues: Vec<Vec<String>> = solves
+        .into_iter()
+        .map(|solve| {
+            solve
+                .supporting_queues(Physics::Jstris)
+                .iter()
+                .flat_map(|&q| {
+                    let saved_piece = q
+                        .map(|s| s.name().as_bytes()[0])
+                        .chain(pattern_bytes.iter().copied())
+                        .fold(0, |acc, b| acc ^ b) as char;
+                    parse_shape(saved_piece).map_or_else(|| q.unhold(), |s| q.push_last(s).unhold())
+                })
+                .unique_by(|q| q.0)
+                .map(|q| q.to_string())
+                .filter(|q| universe.contains(q))
+                .collect()
+        })
+        .collect();
+    min_cover_size(universe, covering_queues)
+}
+
 fn main() {
     let mut file = File::open("./legal-boards.leb128").expect("Failed to open legal_boards");
     let mut buffer = Vec::new();
@@ -127,7 +175,6 @@ fn main() {
         .unwrap()
         .into_iter()
         .collect();
-    println!("Loaded legal_boards.");
 
     let field_hash = 0;
     let start = BrokenBoard::from_garbage(field_hash);
@@ -155,9 +202,9 @@ fn main() {
                 .collect()
         })
         .collect();
+
     let save_count = solveq.chars().filter(|x| *x == save).count();
     let parsed_save = parse_shape(save);
-    // setups.retain(|setup| is_hundred(&boards, &setup, solveq, save));
     setups = setups
         .into_par_iter()
         .filter(|setup| {
@@ -170,14 +217,25 @@ fn main() {
             )
         })
         .collect();
+
     println!(
         "Found {:?} setups in {:?}",
         setups.len(),
         start_load.elapsed()
     );
 
-    for board in &setups {
-        print_board(&board);
-        println!();
+    let solve_queues: BTreeSet<String> = expand_pattern(solveq).into_iter().collect();
+    for (count, board) in setups
+        .iter()
+        .map(|b| {
+            (
+                min_count(&boards, b, solveq, &solve_queues, parsed_save, save_count),
+                b,
+            )
+        })
+        .sorted_by_key(|(count, _)| *count)
+    {
+        print_board(board);
+        println!("Min count: {}\n", count);
     }
 }
