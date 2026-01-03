@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
-use std::collections::{BTreeSet, HashSet};
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{Cursor, Read};
 use std::time::Instant;
@@ -123,7 +123,7 @@ fn min_count(
     legal_boards: &HashSet<Board>,
     setup: &BrokenBoard,
     pattern: &str,
-    universe: &BTreeSet<String>,
+    universe: &HashSet<String>,
     save: Option<Shape>,
     solve_save_count: usize,
 ) -> usize {
@@ -224,7 +224,7 @@ fn main() {
         start_load.elapsed()
     );
 
-    let solve_queues: BTreeSet<String> = expand_pattern(solveq).into_iter().collect();
+    let solve_queues: HashSet<String> = expand_pattern(solveq).into_iter().collect();
     for (count, board) in setups
         .iter()
         .map(|b| {
