@@ -19,6 +19,7 @@ pub struct QBFinder {
     start: BrokenBoard,
     hold: bool,
     physics: Physics,
+    skip_4p: bool,
 }
 
 impl QBFinder {
@@ -38,6 +39,7 @@ impl QBFinder {
             start: BrokenBoard::from_garbage(0),
             hold: true,
             physics: Physics::Jstris,
+            skip_4p: false,
         }
     }
 
@@ -70,14 +72,17 @@ impl QBFinder {
         })
     }
 
-    pub fn find(&self, build_queue: &str, solve_queue: &str, save: char) -> Vec<BrokenBoard> {
-        let mut setups = solver::compute(
+    pub fn compute(&self, queue: &str, setup: &BrokenBoard) -> Vec<BrokenBoard> {
+        solver::compute(
             &self.legal_boards,
-            &self.start,
-            &pattern_bags(build_queue),
+            setup,
+            &pattern_bags(queue),
             true,
             Physics::Jstris,
-        );
+        )
+    }
+
+    pub fn find(&self, build_queue: &str, solve_queue: &str, save: char) -> Vec<BrokenBoard> {
         let solve_queues = expand_pattern(solve_queue)
             .into_iter()
             .map(|q| {
@@ -92,6 +97,13 @@ impl QBFinder {
 
         let save_count = solve_queue.chars().filter(|x| *x == save).count();
         let parsed_save = parse_shape(save);
+
+        let mut setups = if self.skip_4p && build_queue.replace(",", "").len() == 4 {
+            vec![]
+        } else {
+            self.compute(build_queue, &self.start)
+        };
+
         setups = setups
             .into_par_iter()
             .filter(|setup| {
@@ -103,7 +115,60 @@ impl QBFinder {
                 )
             })
             .collect();
+        if setups.len() == 0 && build_queue.replace(",", "").len() == 4 {
+            for p3 in build_queue.chars().combinations(3) {
+                let b: String = p3.iter().collect();
+                let r: String = build_queue.chars().filter(|c| !p3.contains(c)).collect();
+                setups.extend(self.find(&b, &(r + "," + &solve_queue), save));
+            }
+        }
         setups
+    }
+
+    pub fn min_count(
+        &self,
+        setup: &BrokenBoard,
+        pattern: &str,
+        universe: &HashSet<String>,
+        save: Option<Shape>,
+        solve_save_count: usize,
+    ) -> usize {
+        let mut solves = solver::compute(
+            &self.legal_boards,
+            &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
+            &pattern_bags(pattern),
+            true,
+            Physics::Jstris,
+        );
+
+        if let (Some(s), true) = (save, solve_save_count > 0) {
+            let target = solve_save_count - 1;
+            solves.retain(|sol| sol.pieces.iter().filter(|p| p.shape == s).count() == target);
+        }
+
+        let pattern_xor = pattern.replace(",", "").bytes().fold(0, |acc, b| acc ^ b);
+
+        let covering_queues: Vec<Vec<String>> = solves
+            .into_iter()
+            .map(|solve| {
+                solve
+                    .supporting_queues(Physics::Jstris)
+                    .iter()
+                    .flat_map(|&q| {
+                        let saved_piece = q
+                            .map(|s| s.name().as_bytes()[0])
+                            .fold(pattern_xor, |acc, b| acc ^ b)
+                            as char;
+                        parse_shape(saved_piece)
+                            .map_or_else(|| q.unhold(), |s| q.push_last(s).unhold())
+                    })
+                    .unique_by(|q| q.0)
+                    .map(|q| q.to_string())
+                    .filter(|q| universe.contains(q))
+                    .collect()
+            })
+            .collect();
+        min_cover_size(universe, covering_queues)
     }
 }
 
@@ -120,7 +185,7 @@ fn pattern_bags(pattern: &str) -> Vec<Bag> {
     bags
 }
 
-fn expand_pattern(pattern: &str) -> Vec<String> {
+pub fn expand_pattern(pattern: &str) -> Vec<String> {
     pattern
         .split(",")
         .map(|group| {
@@ -137,7 +202,7 @@ fn expand_pattern(pattern: &str) -> Vec<String> {
         .collect()
 }
 
-fn parse_shape(shape: char) -> Option<Shape> {
+pub fn parse_shape(shape: char) -> Option<Shape> {
     match shape {
         'I' => Some(Shape::I),
         'J' => Some(Shape::J),
