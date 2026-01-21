@@ -1,8 +1,11 @@
-use std::time::Instant;
+use std::{collections::HashSet, time::Instant};
 
+use itertools::Itertools;
 use srs_4l::brokenboard::BrokenBoard;
 
 use qb_finder::QBFinder;
+
+use crate::qb_finder::{expand_pattern, parse_shape};
 
 pub mod minimals;
 pub mod qb_finder;
@@ -40,42 +43,57 @@ fn print_board(board: &BrokenBoard) {
 
 fn main() {
     let buildq = "TLSZ";
-    let solveq = "OIL,TJSZ";
+    let mut solveq = "OIL".to_owned();
     let save = 'T';
-
-    let start_load = Instant::now();
-
-    let qbf = QBFinder::new();
-    let setups = qbf.find(buildq, solveq, save);
-
-    println!(
-        "Found {:?} setups in {:?}",
-        setups.len(),
-        start_load.elapsed()
-    );
-    for board in &setups {
-        print_board(&board);
+    let pieces = "TIOLJSZ";
+    let remaining = pieces
+        .chars()
+        .filter(|&c| !solveq.contains(c))
+        .collect::<String>();
+    if !remaining.is_empty() {
+        solveq = format!("{solveq},{remaining}");
     }
 
-    // FIX FOR 3p LATER
-    // let solve_queues: HashSet<String> = expand_pattern(solveq).into_iter().collect();
-    // for (count, board) in setups
-    //     .iter()
-    //     .map(|b| {
-    //         (
-    //             qbf.min_count(
-    //                 b,
-    //                 solveq,
-    //                 &solve_queues,
-    //                 parse_shape(save),
-    //                 solveq.chars().filter(|c| *c == save).count(),
-    //             ),
-    //             b,
-    //         )
-    //     })
-    //     .sorted_by_key(|(count, _)| *count)
-    // {
-    //     print_board(board);
-    //     println!("Min count: {}\n", count);
+    let qbf = QBFinder::new();
+    let start = Instant::now();
+    let setups = qbf.find(buildq, &solveq, save);
+
+    println!("Found {:?} setups in {:?}", setups.len(), start.elapsed());
+    // for board in &setups {
+    //     print_board(&board);
     // }
+
+    let solve_queues: HashSet<String> = expand_pattern(&solveq).into_iter().collect();
+    for (board, count) in setups
+        .iter()
+        .map(|b| {
+            (b, {
+                if b.pieces.len() == buildq.replace(",", "").len() - 1 {
+                    let xor = buildq
+                        .replace(",", "")
+                        .chars()
+                        .fold(0, |a, c| a ^ (c as u8));
+                    let r: String = ((xor
+                        ^ b.pieces
+                            .iter()
+                            .map(|p| p.shape.name().chars().nth(0).unwrap_or_default())
+                            .fold(0, |a, c| a ^ (c as u8)))
+                        as char)
+                        .into();
+                    qbf.min_count(
+                        b,
+                        &(r.clone() + &solveq),
+                        &solve_queues.clone().iter().map(|q| r.clone() + q).collect(),
+                        parse_shape(save),
+                    )
+                } else {
+                    qbf.min_count(b, &solveq, &solve_queues, parse_shape(save))
+                }
+            })
+        })
+        .sorted_by_key(|(_, count)| *count)
+    {
+        print_board(board);
+        println!("Min count: {}\n", count);
+    }
 }

@@ -48,37 +48,33 @@ impl QBFinder {
         setup: &BrokenBoard,
         solve_queues: &Vec<Vec<Bag>>,
         save: Option<Shape>,
-        solve_save_count: usize,
     ) -> bool {
         solve_queues.iter().all(|q| {
-            let solves = solver::compute(&self.legal_boards, &setup, &q, self.hold, self.physics);
-
-            if solves.is_empty() {
-                return false;
-            }
-
-            let Some(save_shape) = save else {
-                return true;
-            };
-
-            solves.iter().any(|solve| {
-                let save_count = solve
-                    .pieces
-                    .iter()
-                    .filter(|piece| piece.shape == save_shape)
-                    .count();
-                solve_save_count == 0 || solve_save_count - 1 == save_count
-            })
+            let solves = solver::compute(
+                &self.legal_boards,
+                &setup,
+                &q,
+                self.hold,
+                self.physics,
+                save,
+            );
+            !solves.is_empty()
         })
     }
 
-    pub fn compute(&self, queue: &str, setup: &BrokenBoard) -> Vec<BrokenBoard> {
+    pub fn compute(
+        &self,
+        queue: &str,
+        setup: &BrokenBoard,
+        save: Option<Shape>,
+    ) -> Vec<BrokenBoard> {
         solver::compute(
             &self.legal_boards,
             setup,
             &pattern_bags(queue),
             true,
             Physics::Jstris,
+            save,
         )
     }
 
@@ -95,13 +91,12 @@ impl QBFinder {
             })
             .collect();
 
-        let save_count = solve_queue.chars().filter(|x| *x == save).count();
         let parsed_save = parse_shape(save);
 
         let mut setups = if self.skip_4p && build_queue.replace(",", "").len() == 4 {
             vec![]
         } else {
-            self.compute(build_queue, &self.start)
+            self.compute(build_queue, &self.start, None)
         };
 
         setups = setups
@@ -111,14 +106,23 @@ impl QBFinder {
                     &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
                     &solve_queues,
                     parsed_save,
-                    save_count,
                 )
             })
             .collect();
+        // Maybe switch to using save in build
         if setups.len() == 0 && build_queue.replace(",", "").len() == 4 {
-            for p3 in build_queue.chars().combinations(3) {
+            let build_pieces = build_queue.replace(",", "");
+            let mut seen = HashSet::new();
+            let xor = build_pieces.chars().fold(0, |a, c| a ^ (c as u8));
+
+            for p3 in build_pieces.chars().combinations(3) {
                 let b: String = p3.iter().collect();
-                let r: String = build_queue.chars().filter(|c| !p3.contains(c)).collect();
+                let r: String = ((xor ^ b.chars().fold(0, |a, c| a ^ (c as u8))) as char).into();
+
+                if !seen.insert(r.clone()) {
+                    continue;
+                }
+
                 setups.extend(self.find(&b, &(r + "," + &solve_queue), save));
             }
         }
@@ -131,20 +135,15 @@ impl QBFinder {
         pattern: &str,
         universe: &HashSet<String>,
         save: Option<Shape>,
-        solve_save_count: usize,
     ) -> usize {
-        let mut solves = solver::compute(
+        let solves = solver::compute(
             &self.legal_boards,
             &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
             &pattern_bags(pattern),
             true,
             Physics::Jstris,
+            save,
         );
-
-        if let (Some(s), true) = (save, solve_save_count > 0) {
-            let target = solve_save_count - 1;
-            solves.retain(|sol| sol.pieces.iter().filter(|p| p.shape == s).count() == target);
-        }
 
         let pattern_xor = pattern.replace(",", "").bytes().fold(0, |acc, b| acc ^ b);
 
@@ -154,13 +153,16 @@ impl QBFinder {
                 solve
                     .supporting_queues(Physics::Jstris)
                     .iter()
-                    .flat_map(|&q| {
-                        let saved_piece = q
-                            .map(|s| s.name().as_bytes()[0])
-                            .fold(pattern_xor, |acc, b| acc ^ b)
-                            as char;
-                        parse_shape(saved_piece)
-                            .map_or_else(|| q.unhold(), |s| q.push_last(s).unhold())
+                    .flat_map(|&q| match save {
+                        Some(s) => q.push_last(s).unhold(),
+                        None => {
+                            let saved_piece = q
+                                .map(|s| s.name().as_bytes()[0])
+                                .fold(pattern_xor, |acc, b| acc ^ b)
+                                as char;
+                            parse_shape(saved_piece)
+                                .map_or_else(|| q.unhold(), |s| q.push_last(s).unhold())
+                        }
                     })
                     .unique_by(|q| q.0)
                     .map(|q| q.to_string())

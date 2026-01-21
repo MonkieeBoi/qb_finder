@@ -20,6 +20,7 @@ fn scan(
     can_hold: bool,
     place_last: bool,
     physics: Physics,
+    save: Option<Shape>,
 ) -> Vec<ScanStage> {
     let mut stages = Vec::new();
 
@@ -88,6 +89,10 @@ fn scan(
         prev = next;
     }
 
+    if !place_last && let Some(s) = save {
+        prev.retain(|_, (old_queues, _)| old_queues.iter().any(|q| q.hold() == Some(s)));
+    }
+
     stages.push(prev);
     stages
 }
@@ -122,6 +127,7 @@ fn place(
     can_hold: bool,
     place_last: bool,
     physics: Physics,
+    save: Option<Shape>,
 ) -> HashMap<BrokenBoard, SmallVec<[QueueState; 7]>> {
     let mut prev = HashMap::new();
     prev.insert(start, bags.first().unwrap().init_hold());
@@ -180,6 +186,10 @@ fn place(
         prev = next;
     }
 
+    if let Some(s) = save {
+        prev.retain(|_, queues| queues.iter().any(|q| q.hold() == Some(s)));
+    }
+
     prev
 }
 
@@ -189,14 +199,17 @@ pub fn compute(
     bags: &[Bag],
     can_hold: bool,
     physics: Physics,
+    save: Option<Shape>,
 ) -> Vec<BrokenBoard> {
     if bags.is_empty() {
         return vec![start.clone()];
     }
 
+    let has_save = save.map_or(false, |s| bags.iter().any(|b| b.contains(s)));
+
     let piece_count = bags.iter().map(|b| b.count as usize).sum();
     let new_mino_count = piece_count as u32 * 4;
-    let place_last = start.board.0.count_ones() + new_mino_count <= 40;
+    let place_last = !has_save && start.board.0.count_ones() + new_mino_count <= 40;
 
     let scanned = scan(
         legal_boards,
@@ -206,6 +219,7 @@ pub fn compute(
         can_hold,
         place_last,
         physics,
+        save
     );
     let culled = cull(&scanned);
     let mut placed = place(
@@ -216,6 +230,7 @@ pub fn compute(
         can_hold,
         place_last,
         physics,
+        save
     );
 
     let mut solutions: Vec<BrokenBoard> =

@@ -36,6 +36,10 @@ impl Bag {
             .collect()
     }
 
+    pub fn contains(&self, shape: Shape) -> bool {
+        self.masks[shape as usize] != 0
+    }
+
     pub fn take(
         &self,
         queues: &[QueueState],
