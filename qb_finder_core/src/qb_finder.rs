@@ -1,11 +1,8 @@
 use itertools::Itertools;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use std::collections::HashSet;
-use std::fs::File;
-use std::io::{Cursor, Read};
 
 use srs_4l::{
-    board_list,
     brokenboard::BrokenBoard,
     gameplay::{Board, Physics, Shape},
 };
@@ -23,19 +20,9 @@ pub struct QBFinder {
 }
 
 impl QBFinder {
-    pub fn new() -> QBFinder {
-        let mut file = File::open("./legal-boards.leb128").expect("Failed to open legal_boards");
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)
-            .expect("Failed to read legal_boards");
-
-        let boards: HashSet<Board> = board_list::read(Cursor::new(buffer))
-            .unwrap()
-            .into_iter()
-            .collect();
-
+    pub fn new(legal_boards: HashSet<Board>) -> QBFinder {
         QBFinder {
-            legal_boards: boards,
+            legal_boards: legal_boards,
             start: BrokenBoard::from_garbage(0),
             hold: true,
             physics: Physics::Jstris,
@@ -215,51 +202,4 @@ pub fn parse_shape(shape: char) -> Option<Shape> {
         'Z' => Some(Shape::Z),
         _ => None,
     }
-}
-
-
-pub fn min_count(
-    legal_boards: &HashSet<Board>,
-    setup: &BrokenBoard,
-    pattern: &str,
-    universe: &HashSet<String>,
-    save: Option<Shape>,
-    solve_save_count: usize,
-) -> usize {
-    let board = &BrokenBoard::from_garbage(setup.to_broken_bitboard().0);
-    let mut solves = solver::compute(
-        legal_boards,
-        board,
-        &pattern_bags(pattern),
-        true,
-        Physics::Jstris,
-    );
-
-    if let (Some(s), true) = (save, solve_save_count > 0) {
-        let target = solve_save_count - 1;
-        solves.retain(|sol| sol.pieces.iter().filter(|p| p.shape == s).count() == target);
-    }
-
-    let pattern_bytes = pattern.replace(",", "").into_bytes();
-
-    let covering_queues: Vec<Vec<String>> = solves
-        .into_iter()
-        .map(|solve| {
-            solve
-                .supporting_queues(Physics::Jstris)
-                .iter()
-                .flat_map(|&q| {
-                    let saved_piece = q
-                        .map(|s| s.name().as_bytes()[0])
-                        .chain(pattern_bytes.iter().copied())
-                        .fold(0, |acc, b| acc ^ b) as char;
-                    parse_shape(saved_piece).map_or_else(|| q.unhold(), |s| q.push_last(s).unhold())
-                })
-                .unique_by(|q| q.0)
-                .map(|q| q.to_string())
-                .filter(|q| universe.contains(q))
-                .collect()
-        })
-        .collect();
-    min_cover_size(universe, covering_queues)
 }

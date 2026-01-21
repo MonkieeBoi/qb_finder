@@ -322,7 +322,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "qb_finder"
+name = "qb_finder_cli"
+version = "0.1.0"
+dependencies = [
+ "itertools",
+ "qb_finder_core",
+ "srs-4l",
+]
+
+[[package]]
+name = "qb_finder_core"
 version = "0.1.0"
 dependencies = [
  "compute",

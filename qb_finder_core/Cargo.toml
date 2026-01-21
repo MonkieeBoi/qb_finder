@@ -1,5 +1,5 @@
 [package]
-name = "qb_finder"
+name = "qb_finder_core"
 version = "0.1.0"
 edition = "2024"
 
