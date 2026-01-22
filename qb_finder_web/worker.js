@@ -1,4 +1,4 @@
-importScripts("./pkg/qb_finder_web.js");
+importScripts("pkg/qb_finder_web.js");
 
 async function main() {
     let legal_boards;
@@ -12,7 +12,7 @@ async function main() {
         console.log("couldn't load legal boards");
     }
 
-    await wasm_bindgen("./pkg/qb_finder_web_bg.wasm");
+    await wasm_bindgen("pkg/qb_finder_web_bg.wasm");
     let qbf = new wasm_bindgen.QBF(legal_boards);
     postMessage({ kind: "ready" });
 
