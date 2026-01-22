@@ -16,7 +16,7 @@ pub struct QBFinder {
     start: BrokenBoard,
     hold: bool,
     physics: Physics,
-    skip_4p: bool,
+    pub skip_4p: bool,
 }
 
 impl QBFinder {

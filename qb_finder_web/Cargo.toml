@@ -1,0 +1,15 @@
+[package]
+name = "qb_finder_web"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+wasm-bindgen = "0.2"
+qb_finder_core = { path = "../qb_finder_core/" }
+itertools = "0.14.0"
+srs-4l = { workspace = true }
+getrandom = { version = "0.3", features = ["wasm_js"] }
+js-sys = "0.3.85"
+
+[lib]
+crate-type = ["cdylib", "rlib"]

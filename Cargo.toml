@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "qb_finder_cli",
-    "qb_finder_core"
+    "qb_finder_core",
+    "qb_finder_web"
 ]
 resolver = "2"
 

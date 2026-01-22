@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>QB Finder</title>
+
+    <style type="text/css"></style>
+    <style type="text/css">
+        * {
+            font-family: monospace;
+        }
+        body {
+          color: #fff;
+          background-color: #2e3440;
+        }
+
+        mino-board {
+            display: block;
+
+            width: 200px;
+            white-space: pre-line;
+        }
+
+        mino-board>svg {
+            border-radius: 4px;
+        }
+
+        mino-board rect[fill="#F3F3ED"] {
+          fill: #3b4252;
+        }
+
+        mino-board rect[fill="#E7E7E2"] {
+          fill: #3b4252;
+        }
+
+        #solutions {
+            display: grid;
+            grid: auto-flow / repeat(auto-fill, 200px);
+            gap: 10px;
+            justify-content: space-evenly;
+            place-items: center;
+
+            padding: 10px;
+        }
+
+        #solutions>mino-board {
+            padding: 10px;
+        }
+
+        #query {
+            margin: 10px;
+            padding: 10px;
+            width: max-content;
+
+            border: 1px solid black;
+            border-radius: 5px;
+            border-color: transparent;
+
+            display: grid;
+            grid-template-columns: 10rem 200px;
+            align-items: start;
+            gap: 20px 10px;
+        }
+
+        #query h1 {
+            grid-column: span 2;
+            margin: 0;
+        }
+
+        #query div.label {
+            font-family: sans-serif;
+            font-weight: bold;
+        }
+
+        label {
+            cursor: pointer;
+        }
+
+        input {
+          background-color: #3b4252;
+          color: #fff;
+          border: 1px solid #434c5e;
+        }
+    </style>
+    <script src="./mino-board.js"></script>
+</head>
+
+<body>
+
+ <div id="query">
+
+        <h1>QB Finder</h1>
+
+        <div>
+            <div class="label">Queues</div>
+        </div>
+        <div style="display: grid; gap: 5px;">
+            <input type="text" id="build_queue">
+            <input type="text" id="solve_queue">
+            <input type="text" id="save" maxlength="1" value="T">
+            <label><input id="skip_4p" type="checkbox"> Skip 4p</label>
+        </div>
+
+    </div>
+
+    <div id="loading">Loading finder...</div>
+
+    <div id="solutions"></div>
+
+    <script src="./pkg/qb_finder_web.js"></script>
+
+    <script type="module">
+        let worker = new Worker("worker.js");
+        let work = null;
+
+        let build_queue = document.getElementById("build_queue");
+        let solve_queue = document.getElementById("solve_queue");
+        let solutions = document.getElementById("solutions");
+        let skip_4p = document.getElementById("skip_4p");
+        let loading = document.getElementById("loading");
+        let save = document.getElementById("save");
+
+        worker.onmessage = message => {
+            console.log(message.data.kind)
+            if (message.data.kind == "ready") {
+                loading.hidden = true;
+                loading.textContent = "Loading...";
+
+                if (work != null) { worker.postMessage(work); }
+                return;
+            }
+
+            if (message.data.query.build_queue != work.build_queue
+                || message.data.query.solve_queue != work.solve_queue) {
+                worker.postMessage(work);
+                return;
+            } else {
+                work = null;
+                solutions.innerHTML = "";
+                solutions.classList.remove("loading");
+            }
+
+            document.getElementById("loading").hidden = true;
+            let count = message.data.setups.length;
+            showSetups(message.data.setups, count);
+        }
+
+        function showSetups(setups, count) {
+            if (setups.length == 0) {
+                solutions.innerText = "no setups";
+            } else {
+                solutions.innerHTML = "";
+            }
+
+            for (const setup of setups) {
+                if (count == 0) { break; }
+                count--;
+                solutions.appendChild(new MinoBoard(setup));
+            }
+        }
+
+        function doSolve() {
+            solutions.innerHTML = "";
+            document.getElementById("loading").hidden = false;
+
+            if (work == null) {
+                solutions.classList.add("loading");
+                work = {
+                    build_queue: build_queue.value,
+                    solve_queue: solve_queue.value,
+                    save: save.value,
+                    skip_4p: skip_4p.checked
+                };
+                worker.postMessage(work);
+            } else {
+                work = {
+                    build_queue: build_queue.value,
+                    solve_queue: solve_queue.value,
+                    save: save.value,
+                    skip_4p: skip_4p.checked
+                };
+                worker.postMessage(work);
+            }
+        }
+
+        [build_queue, solve_queue, save].forEach(input => {
+            input.addEventListener("beforeinput", function (event) {
+                if (event.data && !/[toiljsz,]/ig.test(event.data)) {
+                    event.preventDefault();
+                }
+            });
+        })
+
+        window.addEventListener("keydown", (ev) => {
+            if (ev.key == "Enter") {
+                doSolve();
+            }
+        });
+
+        solve_queue.addEventListener("keydown", (ev) => {
+            if (ev.key == " ") {
+                const pieces = new Set("TIOLJSZ");
+                const sset = new Set(solve_queue.value);
+
+                const remaining = pieces.difference(sset);
+
+                if (remaining.size > 0) {
+                    solve_queue.value += "," + [...remaining].join('');
+                }
+
+                ev.preventDefault();
+            }
+        });
+
+        skip_4p.addEventListener("input", (ev) => doSolve());
+    </script>
+
+</body>
+
+</html>

@@ -18,6 +18,8 @@
           rustfmt
           pkg-config
           openssl
+          wasm-pack
+          lld
         ];
       };
     };
