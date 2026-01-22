@@ -1,7 +1,7 @@
 use itertools::Itertools;
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
-use std::collections::HashSet;
+use rayon::{prelude::{IntoParallelIterator, ParallelIterator}};
 
+use rustc_hash::FxHashSet;
 use srs_4l::{
     brokenboard::BrokenBoard,
     gameplay::{Board, Physics, Shape},
@@ -12,7 +12,7 @@ use crate::queue::Bag;
 use crate::solver;
 
 pub struct QBFinder {
-    legal_boards: HashSet<Board>,
+    legal_boards: FxHashSet<Board>,
     start: BrokenBoard,
     hold: bool,
     physics: Physics,
@@ -20,7 +20,7 @@ pub struct QBFinder {
 }
 
 impl QBFinder {
-    pub fn new(legal_boards: HashSet<Board>) -> QBFinder {
+    pub fn new(legal_boards: FxHashSet<Board>) -> QBFinder {
         QBFinder {
             legal_boards: legal_boards,
             start: BrokenBoard::from_garbage(0),
@@ -37,15 +37,15 @@ impl QBFinder {
         save: Option<Shape>,
     ) -> bool {
         solve_queues.iter().all(|q| {
-            let solves = solver::compute(
+            !solver::compute(
                 &self.legal_boards,
                 &setup,
                 &q,
                 self.hold,
                 self.physics,
                 save,
-            );
-            !solves.is_empty()
+            )
+            .is_empty()
         })
     }
 
@@ -99,16 +99,11 @@ impl QBFinder {
         // Maybe switch to using save in build
         if setups.len() == 0 && build_queue.replace(",", "").len() == 4 {
             let build_pieces = build_queue.replace(",", "");
-            let mut seen = HashSet::new();
             let xor = build_pieces.chars().fold(0, |a, c| a ^ (c as u8));
 
-            for p3 in build_pieces.chars().combinations(3) {
+            for p3 in build_pieces.chars().combinations(3).unique() {
                 let b: String = p3.iter().collect();
                 let r: String = ((xor ^ b.chars().fold(0, |a, c| a ^ (c as u8))) as char).into();
-
-                if !seen.insert(r.clone()) {
-                    continue;
-                }
 
                 setups.extend(self.find(&b, &(r + "," + &solve_queue), save));
             }
@@ -120,7 +115,7 @@ impl QBFinder {
         &self,
         setup: &BrokenBoard,
         pattern: &str,
-        universe: &HashSet<String>,
+        universe: &FxHashSet<String>,
         save: Option<Shape>,
     ) -> usize {
         let solves = solver::compute(

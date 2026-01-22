@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use js_sys::Uint8Array;
-use std::{collections::HashSet, io::Cursor};
+use rustc_hash::FxHashSet;
+use std::{io::Cursor};
 
 use qb_finder_core::{qb_finder::{QBFinder, expand_pattern, parse_shape}, solver};
 use srs_4l::{board_list, gameplay::Board};
@@ -15,7 +16,7 @@ pub struct QBF {
 impl QBF {
     #[wasm_bindgen(constructor)]
     pub fn init(legal_boards: Option<Uint8Array>) -> QBF {
-        let boards: HashSet<Board> = match legal_boards {
+        let boards: FxHashSet<Board> = match legal_boards {
             Some(arr) => board_list::read(Cursor::new(&arr.to_vec()))
                 .unwrap()
                 .drain(..)
@@ -34,7 +35,7 @@ impl QBF {
 
     pub fn find(&self, build_queue: &str, solve_queue: &str, save: char) -> String {
         let setups = self.qbf.find(build_queue, &solve_queue, save);
-        let solve_queues: HashSet<String> = expand_pattern(&solve_queue).into_iter().collect();
+        let solve_queues: FxHashSet<String> = expand_pattern(&solve_queue).into_iter().collect();
         let min_setups: Vec<_> = setups
             .iter()
             .map(|b| {

@@ -8,5 +8,6 @@ compute = { workspace = true }
 good_lp = { version = "1.14.2", features = ["microlp"], default-features = false }
 itertools = "0.14.0"
 rayon = "1.11.0"
+rustc-hash = "2.1.1"
 smallvec = "1.15.1"
 srs-4l = { workspace = true }

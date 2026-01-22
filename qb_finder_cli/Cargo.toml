@@ -7,3 +7,4 @@ edition = "2024"
 qb_finder_core = { path = "../qb_finder_core/" }
 itertools = "0.14.0"
 srs-4l = { workspace = true }
+rustc-hash = "2.1.1"

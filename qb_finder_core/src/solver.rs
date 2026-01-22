@@ -1,5 +1,4 @@
-use std::collections::{HashMap, HashSet};
-
+use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 
 use srs_4l::{
@@ -10,10 +9,10 @@ use srs_4l::{
 
 use crate::queue::{Bag, QueueState};
 
-type ScanStage = HashMap<Board, (SmallVec<[QueueState; 7]>, SmallVec<[Board; 6]>)>;
+type ScanStage = FxHashMap<Board, (SmallVec<[QueueState; 7]>, SmallVec<[Board; 6]>)>;
 
 fn scan(
-    legal_boards: &HashSet<Board>,
+    legal_boards: &FxHashSet<Board>,
     start: Board,
     bags: &[Bag],
     _piece_count: usize,
@@ -24,7 +23,7 @@ fn scan(
 ) -> Vec<ScanStage> {
     let mut stages = Vec::new();
 
-    let mut prev: ScanStage = HashMap::new();
+    let mut prev: ScanStage = FxHashMap::default();
     prev.insert(start, (bags.first().unwrap().init_hold(), SmallVec::new()));
 
     for (bag, i) in bags
@@ -32,7 +31,8 @@ fn scan(
         .flat_map(|b| (0..b.count).into_iter().map(move |i| (b, i)))
         .skip(1)
     {
-        let mut next: ScanStage = HashMap::new();
+        let mut next: ScanStage =
+            FxHashMap::with_capacity_and_hasher(prev.len(), Default::default());
 
         for (&old_board, (old_queues, _preds)) in prev.iter() {
             for shape in Shape::ALL {
@@ -66,7 +66,8 @@ fn scan(
     }
 
     if place_last {
-        let mut next: ScanStage = HashMap::new();
+        let mut next: ScanStage =
+            FxHashMap::with_capacity_and_hasher(prev.len(), Default::default());
 
         for (&old_board, (old_queues, _preds)) in prev.iter() {
             for shape in Shape::ALL {
@@ -97,8 +98,9 @@ fn scan(
     stages
 }
 
-fn cull(scanned: &[ScanStage]) -> HashSet<Board> {
-    let mut culled = HashSet::new();
+fn cull(scanned: &[ScanStage]) -> FxHashSet<Board> {
+    let mut culled = FxHashSet::with_capacity_and_hasher(scanned.len(), Default::default());
+
     let mut iter = scanned.iter().rev();
 
     if let Some(final_stage) = iter.next() {
@@ -120,7 +122,7 @@ fn cull(scanned: &[ScanStage]) -> HashSet<Board> {
 }
 
 fn place(
-    culled: &HashSet<Board>,
+    culled: &FxHashSet<Board>,
     start: BrokenBoard,
     bags: &[Bag],
     _piece_count: usize,
@@ -128,8 +130,8 @@ fn place(
     place_last: bool,
     physics: Physics,
     save: Option<Shape>,
-) -> HashMap<BrokenBoard, SmallVec<[QueueState; 7]>> {
-    let mut prev = HashMap::new();
+) -> FxHashMap<BrokenBoard, SmallVec<[QueueState; 7]>> {
+    let mut prev = FxHashMap::default();
     prev.insert(start, bags.first().unwrap().init_hold());
 
     for (bag, i) in bags
@@ -137,7 +139,8 @@ fn place(
         .flat_map(|b| (0..b.count).into_iter().map(move |i| (b, i)))
         .skip(1)
     {
-        let mut next: HashMap<BrokenBoard, SmallVec<[QueueState; 7]>> = HashMap::new();
+        let mut next: FxHashMap<BrokenBoard, SmallVec<[QueueState; 7]>> =
+            FxHashMap::with_capacity_and_hasher(prev.len(), Default::default());
 
         for (old_board, old_queues) in prev.iter() {
             for shape in Shape::ALL {
@@ -167,7 +170,8 @@ fn place(
     }
 
     if place_last {
-        let mut next: HashMap<BrokenBoard, SmallVec<[QueueState; 7]>> = HashMap::new();
+        let mut next: FxHashMap<BrokenBoard, SmallVec<[QueueState; 7]>> =
+            FxHashMap::with_capacity_and_hasher(prev.len(), Default::default());
 
         for (old_board, old_queues) in prev.iter() {
             for shape in Shape::ALL {
@@ -194,7 +198,7 @@ fn place(
 }
 
 pub fn compute(
-    legal_boards: &HashSet<Board>,
+    legal_boards: &FxHashSet<Board>,
     start: &BrokenBoard,
     bags: &[Bag],
     can_hold: bool,
@@ -219,7 +223,7 @@ pub fn compute(
         can_hold,
         place_last,
         physics,
-        save
+        save,
     );
     let culled = cull(&scanned);
     let mut placed = place(
@@ -230,7 +234,7 @@ pub fn compute(
         can_hold,
         place_last,
         physics,
-        save
+        save,
     );
 
     let mut solutions: Vec<BrokenBoard> =

@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     fs::File,
     io::{self, Cursor, Read, Write},
     time::Instant,
@@ -10,6 +9,7 @@ use qb_finder_core::{
     qb_finder::{QBFinder, expand_pattern, parse_shape},
     solver,
 };
+use rustc_hash::FxHashSet;
 use srs_4l::{board_list, brokenboard::BrokenBoard, gameplay::Board};
 
 fn emoji_map(c: char) -> char {
@@ -47,7 +47,7 @@ fn main() {
     file.read_to_end(&mut buffer)
         .expect("Failed to read legal_boards");
 
-    let legal_boards: HashSet<Board> = board_list::read(Cursor::new(buffer))
+    let legal_boards: FxHashSet<Board> = board_list::read(Cursor::new(buffer))
         .unwrap()
         .into_iter()
         .collect();
@@ -94,7 +94,7 @@ fn main() {
         //     print_board(&board);
         // }
 
-        let solve_queues: HashSet<String> = expand_pattern(&solveq).into_iter().collect();
+        let solve_queues: FxHashSet<String> = expand_pattern(&solveq).into_iter().collect();
         for (board, count) in setups
             .iter()
             .map(|b| {

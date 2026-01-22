@@ -10,6 +10,7 @@ itertools = "0.14.0"
 srs-4l = { workspace = true }
 getrandom = { version = "0.3", features = ["wasm_js"] }
 js-sys = "0.3.85"
+rustc-hash = "2.1.1"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
