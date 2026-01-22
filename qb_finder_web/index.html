@@ -159,7 +159,10 @@
             for (const setup of setups) {
                 if (count == 0) { break; }
                 count--;
-                solutions.appendChild(new MinoBoard(setup));
+                const [board, min_count] = setup.split(",")
+                const board_element = new MinoBoard(board);
+                board_element.title = `Min Count: ${min_count}`;
+                solutions.appendChild(board_element);
             }
         }
 
