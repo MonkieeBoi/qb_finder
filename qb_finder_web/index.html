@@ -111,7 +111,7 @@
 
     <div id="solutions"></div>
 
-    <script src="./pkg/qb_finder_web.js"></script>
+    <script src="pkg/qb_finder_web.js"></script>
 
     <script type="module">
         let worker = new Worker("worker.js");
@@ -125,12 +125,14 @@
         let save = document.getElementById("save");
 
         worker.onmessage = message => {
-            console.log(message.data.kind)
             if (message.data.kind == "ready") {
-                loading.hidden = true;
                 loading.textContent = "Loading...";
 
-                if (work != null) { worker.postMessage(work); }
+                if (work != null) {
+                    worker.postMessage(work);
+                } else {
+                    loading.hidden = true;
+                }
                 return;
             }
 
@@ -161,7 +163,9 @@
                 count--;
                 const [board, min_count] = setup.split(",")
                 const board_element = new MinoBoard(board);
-                board_element.title = `Min Count: ${min_count}`;
+                if (min_count > 0) {
+                    board_element.title = `Min Count: ${min_count}`;
+                }
                 solutions.appendChild(board_element);
             }
         }
@@ -218,8 +222,6 @@
                 ev.preventDefault();
             }
         });
-
-        skip_4p.addEventListener("input", (ev) => doSolve());
     </script>
 
 </body>

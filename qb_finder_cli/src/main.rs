@@ -99,7 +99,9 @@ fn main() {
             .iter()
             .map(|b| {
                 (b, {
-                    if b.pieces.len() == buildq.replace(",", "").len() - 1 {
+                    if b.pieces.len() < 3 {
+                        0
+                    } else if b.pieces.len() == buildq.replace(",", "").len() - 1 {
                         let xor = buildq
                             .replace(",", "")
                             .chars()
@@ -125,7 +127,11 @@ fn main() {
             .sorted_by_key(|(_, count)| *count)
         {
             print_board(board);
-            println!("Min count: {}\n", count);
+            if count > 0 {
+                println!("Min count: {}\n", count);
+            } else {
+                println!("");
+            }
         }
     }
 }

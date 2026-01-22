@@ -39,7 +39,9 @@ impl QBF {
             .iter()
             .map(|b| {
                 (b, {
-                    if b.pieces.len() == build_queue.replace(",", "").len() - 1 {
+                    if b.pieces.len() < 3 {
+                        0
+                    } else if b.pieces.len() == build_queue.replace(",", "").len() - 1 {
                         let xor = build_queue
                             .replace(",", "")
                             .chars()
