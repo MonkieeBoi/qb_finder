@@ -27,7 +27,7 @@ jobs:
       - name: Build WASM
         run: |
           cd qb_finder_web
-          wasm-pack build --target web --out-dir pkg
+          wasm-pack build --target no-modules --out-dir pkg
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
