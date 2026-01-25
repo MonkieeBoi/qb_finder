@@ -99,8 +99,8 @@
             <div class="label">Queues</div>
         </div>
         <div style="display: grid; gap: 5px;">
-            <input type="text" id="build_queue">
-            <input type="text" id="solve_queue">
+            <input type="text" id="build_queue" placeholder="T,TSZ">
+            <input type="text" id="solve_queue" placeholder="T,LJ,I,OSZ">
             <input type="text" id="save" maxlength="1" value="T">
             <label><input id="skip_4p" type="checkbox"> Skip 4p</label>
         </div>
@@ -203,14 +203,14 @@
         })
 
         window.addEventListener("keydown", (ev) => {
-            if (ev.key == "Enter") {
+            if (ev.key == "Enter" || ev.keyCode == 13 || ev.which == 13) {
                 doSolve();
             }
         });
 
         solve_queue.addEventListener("keydown", (ev) => {
-            if (ev.key == " ") {
-                const pieces = new Set("TIOLJSZ");
+            if (ev.key == " " || ev.code == "Space" || ev.keyCode == 32) {
+                const pieces = new Set("TIJLOSZ");
                 const sset = new Set(solve_queue.value);
 
                 const remaining = pieces.difference(sset);
