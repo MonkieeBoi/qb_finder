@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="https://monkieeboi.github.io/pc/favicon.ico" />
+
+    <title>Minimals</title>
+
+    <style type="text/css">
+      * {
+        font-family: monospace;
+      }
+
+      body {
+        color: #fff;
+        background-color: #2e3440;
+      }
+
+      #header {
+        margin: 10px;
+        padding: 20px;
+        width: 200px;
+      }
+
+      #header progress {
+        width: 100%;
+      }
+
+      #header h1 {
+        margin: 0;
+        margin-bottom: 20px;
+      }
+
+      mino-board {
+        display: block;
+
+        width: 200px;
+        white-space: pre-line;
+        padding: 10px;
+      }
+
+      mino-board > svg {
+        border-radius: 4px;
+      }
+
+      section {
+        margin: 0;
+        padding: 10px 20px;
+      }
+
+      h2 {
+        font-size: large;
+      }
+
+      mino-board rect[fill="#F3F3ED"] {
+        fill: #3b4252;
+      }
+
+      mino-board rect[fill="#E7E7E2"] {
+        fill: #3b4252;
+      }
+
+      div {
+        display: grid;
+        grid: auto-flow / repeat(auto-fill, 200px);
+        gap: 10px;
+        justify-content: space-evenly;
+        place-items: center;
+
+        padding: 10px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header id="header">
+      <h1>Minimals</h1>
+    </header>
+
+    <section>
+      <h2>Common</h2>
+      <div id="common"></div>
+    </section>
+
+    <section id="unique"></section>
+
+    <script src="mino-board.js"></script>
+    <script src="pkg/qb_finder_web.js"></script>
+    <script type="module">
+      let header = document.getElementById("header");
+      let common = document.getElementById("common");
+      let unique = document.getElementById("unique");
+
+      async function main() {
+        const params = new URLSearchParams(window.location.search);
+
+        const setup = params.get("setup");
+        const build_queue = params.get("build_queue");
+        const solve_queue = params.get("solve_queue");
+        const save = params.get("save");
+        let legal_boards;
+
+        let response = await fetch(
+          "https://wirelyre.github.io/tetra-tools/legal-boards.leb128",
+        );
+        if (response.ok) {
+          legal_boards = new Uint8Array(await response.arrayBuffer());
+        } else {
+          console.log("couldn't load legal boards");
+        }
+
+        await wasm_bindgen("pkg/qb_finder_web_bg.wasm");
+        let qbf = new wasm_bindgen.QBF(legal_boards);
+        let [board, commons, ...uniques] = qbf
+          .find_min_sets(setup, build_queue, solve_queue, save)
+          .split("|");
+
+        header.appendChild(new MinoBoard(board));
+
+        for (const solve of commons.split(",")) {
+          common.appendChild(new MinoBoard(solve));
+        }
+
+        for (const [i, solves] of uniques.entries()) {
+          if (solves == "") {
+            continue;
+          }
+          let container = document.createElement("div");
+          let label = document.createElement("h2");
+          label.textContent = `Set ${i + 1}`;
+          unique.appendChild(label);
+          for (const solve of solves.split(",")) {
+            container.appendChild(new MinoBoard(solve));
+          }
+          unique.appendChild(container);
+        }
+      }
+      main();
+    </script>
+  </body>
+</html>

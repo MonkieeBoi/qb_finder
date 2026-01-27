@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use rayon::{prelude::{IntoParallelIterator, ParallelIterator}};
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
 use rustc_hash::FxHashSet;
 use srs_4l::{
@@ -7,7 +7,7 @@ use srs_4l::{
     gameplay::{Board, Physics, Shape},
 };
 
-use crate::minimals::min_cover_size;
+use crate::minimals::{all_min_cover_sets, min_cover_size};
 use crate::queue::Bag;
 use crate::solver;
 
@@ -152,7 +152,55 @@ impl QBFinder {
                     .collect()
             })
             .collect();
-        min_cover_size(universe, covering_queues)
+        min_cover_size(universe, &covering_queues)
+    }
+
+    pub fn all_min_sets(
+        &self,
+        setup: &BrokenBoard,
+        pattern: &str,
+        universe: &FxHashSet<String>,
+        save: Option<Shape>,
+    ) -> (Vec<BrokenBoard>, Vec<Vec<usize>>) {
+        let solves = solver::compute(
+            &self.legal_boards,
+            &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
+            &pattern_bags(pattern),
+            true,
+            Physics::Jstris,
+            save,
+        );
+
+        let pattern_xor = pattern.replace(",", "").bytes().fold(0, |acc, b| acc ^ b);
+
+        let covering_queues: Vec<Vec<String>> = solves
+            .iter()
+            .map(|solve| {
+                solve
+                    .supporting_queues(Physics::Jstris)
+                    .iter()
+                    .flat_map(|&q| match save {
+                        Some(s) => q.push_last(s).unhold(),
+                        None => {
+                            let saved_piece = q
+                                .map(|s| s.name().as_bytes()[0])
+                                .fold(pattern_xor, |acc, b| acc ^ b)
+                                as char;
+                            parse_shape(saved_piece)
+                                .map_or_else(|| q.unhold(), |s| q.push_last(s).unhold())
+                        }
+                    })
+                    .unique_by(|q| q.0)
+                    .map(|q| q.to_string())
+                    .filter(|q| universe.contains(q))
+                    .collect()
+            })
+            .collect();
+
+        (
+            solves.clone(),
+            all_min_cover_sets(universe, &covering_queues)
+        )
     }
 }
 

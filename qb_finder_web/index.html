@@ -8,7 +8,6 @@
     <title>QB Finder</title>
     <link rel="icon" href="https://monkieeboi.github.io/pc/favicon.ico" />
 
-    <style type="text/css"></style>
     <style type="text/css">
         * {
             font-family: monospace;
@@ -161,12 +160,21 @@
             for (const setup of setups) {
                 if (count == 0) { break; }
                 count--;
-                const [board, min_count] = setup.split(",")
-                const board_element = new MinoBoard(board);
+                const [board, min_count, encoded] = setup.split(",")
+                const params = new URLSearchParams();
+                params.set('setup', encoded);
+                params.set('build_queue', build_queue.value);
+                params.set('solve_queue', solve_queue.value);
+                params.set('save', save.value);
+                let link = document.createElement("a");
+                link.target = "_blank";
+                link.appendChild(new MinoBoard(board));
+                link.href = `./setup_mins.html?${params.toString()}`;
                 if (min_count > 0) {
-                    board_element.title = `Min Count: ${min_count}`;
+                    link.title = `Min Count: ${min_count}`;
                 }
-                solutions.appendChild(board_element);
+
+                solutions.appendChild(link);
             }
         }
 

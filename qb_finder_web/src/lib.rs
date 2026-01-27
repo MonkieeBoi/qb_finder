@@ -1,10 +1,18 @@
 use itertools::Itertools;
 use js_sys::Uint8Array;
 use rustc_hash::FxHashSet;
-use std::{io::Cursor};
+use std::io::Cursor;
 
-use qb_finder_core::{qb_finder::{QBFinder, expand_pattern, parse_shape}, solver};
-use srs_4l::{board_list, gameplay::Board};
+use qb_finder_core::{
+    qb_finder::{QBFinder, expand_pattern, parse_shape},
+    solver,
+};
+use srs_4l::{
+    base64::{base64_decode, base64_encode},
+    board_list,
+    brokenboard::BrokenBoard,
+    gameplay::Board,
+};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
@@ -29,7 +37,7 @@ impl QBF {
         }
     }
 
-    pub fn set_skip_4p (&mut self, skip_4p: bool) {
+    pub fn set_skip_4p(&mut self, skip_4p: bool) {
         self.qbf.skip_4p = skip_4p;
     }
 
@@ -61,22 +69,99 @@ impl QBF {
                             parse_shape(save),
                         )
                     } else {
-                        self.qbf.min_count(b, &solve_queue, &solve_queues, parse_shape(save))
+                        self.qbf
+                            .min_count(b, &solve_queue, &solve_queues, parse_shape(save))
                     }
                 })
             })
-            .sorted_by_key(|(_, count)| *count).collect();
+            .sorted_by_key(|(_, count)| *count)
+            .collect();
 
         let mut str = String::new();
 
         for (board, min_count) in &min_setups {
             solver::print(&board, &mut str);
-            str.push_str(&format!(",{}|", min_count));
+            str.push_str(&format!(",{},", min_count));
+            base64_encode(&board.encode(), &mut str);
+            str.push('|');
+        }
+
+        str.pop();
+        str
+    }
+
+    pub fn find_min_sets(
+        &self,
+        setup: &str,
+        build_queue: &str,
+        solve_queue: &str,
+        save: char,
+    ) -> String {
+        let mut str = String::new();
+
+        let bits = match base64_decode(setup) {
+            Some(b) => b,
+            None => return str,
+        };
+
+        let board = match BrokenBoard::decode(&bits) {
+            Some(b) => b,
+            None => return str,
+        };
+
+        solver::print(&board, &mut str);
+        str.push('|');
+
+        let solve_queues: FxHashSet<String> = expand_pattern(&solve_queue).into_iter().collect();
+
+        let (solves, covers) = if board.pieces.len() == build_queue.replace(",", "").len() - 1 {
+            let xor = build_queue
+                .replace(",", "")
+                .chars()
+                .fold(0, |a, c| a ^ (c as u8));
+
+            let r: String = ((xor
+                ^ board
+                    .pieces
+                    .iter()
+                    .map(|p| p.shape.name().chars().nth(0).unwrap_or_default())
+                    .fold(0, |a, c| a ^ (c as u8))) as char)
+                .into();
+
+            self.qbf.all_min_sets(
+                &board,
+                &(r.clone() + &solve_queue),
+                &solve_queues.clone().iter().map(|q| r.clone() + q).collect(),
+                parse_shape(save),
+            )
+        } else {
+            self.qbf
+                .all_min_sets(&board, &solve_queue, &solve_queues, parse_shape(save))
+        };
+
+        let mut common: FxHashSet<usize> = covers[0].iter().cloned().collect();
+
+        for set in covers.iter().skip(1) {
+            let current_set: FxHashSet<usize> = set.iter().cloned().collect();
+            common.retain(|idx| current_set.contains(idx));
+        }
+
+        for &idx in &common {
+            solver::print(&solves[idx], &mut str);
+            str.push(',');
+        }
+        str.push('|');
+
+        for set in covers {
+            let unique: Vec<_> = set.iter().filter(|idx| !common.contains(idx)).collect();
+            for &idx in &unique {
+                solver::print(&solves[*idx], &mut str);
+                str.push(',');
+            }
+            str.push('|');
         }
 
         str.pop();
         str
     }
 }
-
-
