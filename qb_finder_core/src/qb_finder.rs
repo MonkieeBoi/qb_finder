@@ -198,7 +198,7 @@ impl QBFinder {
             .collect();
 
         (
-            solves.clone(),
+            solves,
             all_min_cover_sets(universe, &covering_queues)
         )
     }

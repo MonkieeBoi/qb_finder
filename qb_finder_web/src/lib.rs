@@ -77,17 +77,17 @@ impl QBF {
             .sorted_by_key(|(_, count)| *count)
             .collect();
 
-        let mut str = String::new();
+        let mut res = String::new();
 
         for (board, min_count) in &min_setups {
-            solver::print(&board, &mut str);
-            str.push_str(&format!(",{},", min_count));
-            base64_encode(&board.encode(), &mut str);
-            str.push('|');
+            solver::print(&board, &mut res);
+            res.push_str(&format!(",{},", min_count));
+            base64_encode(&board.encode(), &mut res);
+            res.push('|');
         }
 
-        str.pop();
-        str
+        res.pop();
+        res
     }
 
     pub fn find_min_sets(
@@ -97,20 +97,20 @@ impl QBF {
         solve_queue: &str,
         save: char,
     ) -> String {
-        let mut str = String::new();
+        let mut res = String::new();
 
         let bits = match base64_decode(setup) {
             Some(b) => b,
-            None => return str,
+            None => return res,
         };
 
         let board = match BrokenBoard::decode(&bits) {
             Some(b) => b,
-            None => return str,
+            None => return res,
         };
 
-        solver::print(&board, &mut str);
-        str.push('|');
+        solver::print(&board, &mut res);
+        res.push('|');
 
         let solve_queues: FxHashSet<String> = expand_pattern(&solve_queue).into_iter().collect();
 
@@ -147,21 +147,21 @@ impl QBF {
         }
 
         for &idx in &common {
-            solver::print(&solves[idx], &mut str);
-            str.push(',');
+            solver::print(&solves[idx], &mut res);
+            res.push(',');
         }
-        str.push('|');
+        res.push('|');
 
         for set in covers {
             let unique: Vec<_> = set.iter().filter(|idx| !common.contains(idx)).collect();
             for &idx in &unique {
-                solver::print(&solves[*idx], &mut str);
-                str.push(',');
+                solver::print(&solves[*idx], &mut res);
+                res.push(',');
             }
-            str.push('|');
+            res.push('|');
         }
 
-        str.pop();
-        str
+        res.pop();
+        res
     }
 }
