@@ -139,15 +139,16 @@
                 || message.data.query.solve_queue != work.solve_queue) {
                 worker.postMessage(work);
                 return;
-            } else {
-                work = null;
-                solutions.innerHTML = "";
-                solutions.classList.remove("loading");
             }
 
+            solutions.innerHTML = "";
+            solutions.classList.remove("loading");
             document.getElementById("loading").hidden = true;
             let count = message.data.setups.length;
             showSetups(message.data.setups, count);
+
+            work = null;
+
         }
 
         function showSetups(setups, count) {
@@ -163,9 +164,9 @@
                 const [board, min_count, encoded] = setup.split(",")
                 const params = new URLSearchParams();
                 params.set('setup', encoded);
-                params.set('build_queue', build_queue.value);
-                params.set('solve_queue', solve_queue.value);
-                params.set('save', save.value);
+                params.set('build_queue', work.build_queue);
+                params.set('solve_queue', work.solve_queue);
+                params.set('save', work.save);
                 let link = document.createElement("a");
                 link.target = "_blank";
                 link.appendChild(new MinoBoard(board));
