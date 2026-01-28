@@ -19,6 +19,19 @@ async function main() {
     onmessage = (msg) => {
         let query = msg.data;
 
+        if (query.setup != undefined) {
+            postMessage({
+                kind: "ok",
+                res: qbf.find_min_sets(
+                    query.setup,
+                    query.build_queue,
+                    query.solve_queue,
+                    query.save,
+                ),
+            });
+            return;
+        }
+
         qbf.set_skip_4p(query.skip_4p);
 
         let setups = qbf.find(

@@ -106,33 +106,23 @@
     <script src="mino-board.js"></script>
     <script src="pkg/qb_finder_web.js"></script>
     <script type="module">
+      let worker = new Worker("worker.js");
       let header = document.getElementById("header");
       let common = document.getElementById("common");
       let unique = document.getElementById("unique");
+      const params = new URLSearchParams(window.location.search);
 
-      async function main() {
-        const params = new URLSearchParams(window.location.search);
-
-        const setup = params.get("setup");
-        const build_queue = params.get("build_queue");
-        const solve_queue = params.get("solve_queue");
-        const save = params.get("save");
-        let legal_boards;
-
-        let response = await fetch(
-          "https://wirelyre.github.io/tetra-tools/legal-boards.leb128",
-        );
-        if (response.ok) {
-          legal_boards = new Uint8Array(await response.arrayBuffer());
-        } else {
-          console.log("couldn't load legal boards");
+      worker.onmessage = message => {
+        if (message.data.kind == "ready") {
+          worker.postMessage({
+            setup: params.get("setup"),
+            build_queue: params.get("build_queue"),
+            solve_queue: params.get("solve_queue"),
+            save: params.get("save")
+          });
+          return;
         }
-
-        await wasm_bindgen("pkg/qb_finder_web_bg.wasm");
-        let qbf = new wasm_bindgen.QBF(legal_boards);
-        let [board, commons, ...uniques] = qbf
-          .find_min_sets(setup, build_queue, solve_queue, save)
-          .split("|");
+        let [board, commons, ...uniques] = message.data.res.split("|");
 
         document.querySelectorAll(".loading").forEach((el) => el.remove());
 
@@ -156,7 +146,6 @@
           unique.appendChild(container);
         }
       }
-      main();
     </script>
   </body>
 </html>
