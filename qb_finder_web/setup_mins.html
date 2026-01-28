@@ -32,6 +32,19 @@
         margin-bottom: 20px;
       }
 
+      .loading {
+        width: 200px;
+        border-radius: 4px;
+        height: 104px;
+        margin: 10px;
+        padding: 0;
+        left: -150%;
+        background: linear-gradient( 67deg, #3b4252 25%, #434c5e 50%, #4c566a 75% );
+        background-size: 200% 100%;
+        animation: shim 1.5s infinite linear;
+      }
+      @keyframes shim { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
       mino-board {
         display: block;
 
@@ -76,11 +89,16 @@
   <body>
     <header id="header">
       <h1>Minimals</h1>
+      <div class="loading"></div>
     </header>
 
     <section>
       <h2>Common</h2>
-      <div id="common"></div>
+      <div id="common">
+        <div class="loading"></div>
+        <div class="loading"></div>
+        <div class="loading"></div>
+      </div>
     </section>
 
     <section id="unique"></section>
@@ -115,6 +133,8 @@
         let [board, commons, ...uniques] = qbf
           .find_min_sets(setup, build_queue, solve_queue, save)
           .split("|");
+
+        document.querySelectorAll(".loading").forEach((el) => el.remove());
 
         header.appendChild(new MinoBoard(board));
 
