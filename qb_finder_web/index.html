@@ -6,85 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>QB Finder</title>
+
     <link rel="icon" href="https://monkieeboi.github.io/pc/favicon.ico" />
-
-    <style type="text/css">
-        * {
-            font-family: monospace;
-        }
-        body {
-          color: #fff;
-          background-color: #2e3440;
-        }
-
-        mino-board {
-            display: block;
-
-            width: 200px;
-            white-space: pre-line;
-        }
-
-        mino-board>svg {
-            border-radius: 4px;
-        }
-
-        mino-board rect[fill="#F3F3ED"] {
-          fill: #3b4252;
-        }
-
-        mino-board rect[fill="#E7E7E2"] {
-          fill: #3b4252;
-        }
-
-        #solutions {
-            display: grid;
-            grid: auto-flow / repeat(auto-fill, 200px);
-            gap: 10px;
-            justify-content: space-evenly;
-            place-items: center;
-
-            padding: 10px;
-        }
-
-        #solutions>mino-board {
-            padding: 10px;
-        }
-
-        #query {
-            margin: 10px;
-            padding: 10px;
-            width: max-content;
-
-            border: 1px solid black;
-            border-radius: 5px;
-            border-color: transparent;
-
-            display: grid;
-            grid-template-columns: 10rem 200px;
-            align-items: start;
-            gap: 20px 10px;
-        }
-
-        #query h1 {
-            grid-column: span 2;
-            margin: 0;
-        }
-
-        #query div.label {
-            font-family: sans-serif;
-            font-weight: bold;
-        }
-
-        label {
-            cursor: pointer;
-        }
-
-        input {
-          background-color: #3b4252;
-          color: #fff;
-          border: 1px solid #434c5e;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css" />
     <script src="mino-board.js"></script>
 </head>
 
@@ -108,7 +32,11 @@
 
     <div id="loading">Loading finder...</div>
 
-    <div id="solutions"></div>
+    <div id="solutions">
+        <div class="loading" hidden></div>
+        <div class="loading" hidden></div>
+        <div class="loading" hidden></div>
+    </div>
 
     <script src="pkg/qb_finder_web.js"></script>
 
@@ -120,17 +48,15 @@
         let solve_queue = document.getElementById("solve_queue");
         let solutions = document.getElementById("solutions");
         let skip_4p = document.getElementById("skip_4p");
-        let loading = document.getElementById("loading");
         let save = document.getElementById("save");
 
         worker.onmessage = message => {
             if (message.data.kind == "ready") {
-                loading.textContent = "Loading...";
+                document.getElementById("loading").remove();
 
                 if (work != null) {
                     worker.postMessage(work);
-                } else {
-                    loading.hidden = true;
+                    document.querySelectorAll(".loading").forEach((el) => el.hidden = false);
                 }
                 return;
             }
@@ -141,9 +67,7 @@
                 return;
             }
 
-            solutions.innerHTML = "";
-            solutions.classList.remove("loading");
-            document.getElementById("loading").hidden = true;
+            document.querySelectorAll(".loading").forEach((el) => el.hidden = true);
             let count = message.data.setups.length;
             showSetups(message.data.setups, count);
 
@@ -153,9 +77,7 @@
 
         function showSetups(setups, count) {
             if (setups.length == 0) {
-                solutions.innerText = "no setups";
-            } else {
-                solutions.innerHTML = "";
+                solutions.append("no setups");
             }
 
             for (const setup of setups) {
@@ -180,25 +102,15 @@
         }
 
         function doSolve() {
-            solutions.innerHTML = "";
-            document.getElementById("loading").hidden = false;
-
-            if (work == null) {
-                solutions.classList.add("loading");
-                work = {
-                    build_queue: build_queue.value,
-                    solve_queue: solve_queue.value,
-                    save: save.value,
-                    skip_4p: skip_4p.checked
-                };
-                worker.postMessage(work);
-            } else {
-                work = {
-                    build_queue: build_queue.value,
-                    solve_queue: solve_queue.value,
-                    save: save.value,
-                    skip_4p: skip_4p.checked
-                };
+            work = {
+                build_queue: build_queue.value,
+                solve_queue: solve_queue.value,
+                save: save.value,
+                skip_4p: skip_4p.checked
+            };
+            if (!document.getElementById('loading')) {
+                solutions.querySelectorAll(':nth-child(n+4)').forEach(el => el.remove());
+                document.querySelectorAll(".loading").forEach((el) => el.hidden = false);
                 worker.postMessage(work);
             }
         }

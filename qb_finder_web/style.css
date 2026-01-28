@@ -1,0 +1,101 @@
+* {
+    font-family: monospace;
+}
+
+body {
+    color: #fff;
+    background-color: #2e3440;
+}
+
+mino-board {
+    display: block;
+
+    width: 200px;
+    white-space: pre-line;
+}
+
+mino-board > svg {
+    border-radius: 4px;
+}
+
+mino-board rect[fill="#F3F3ED"] {
+    fill: #3b4252;
+}
+
+mino-board rect[fill="#E7E7E2"] {
+    fill: #3b4252;
+}
+
+#solutions, #common, #unique > div {
+    display: grid;
+    grid: auto-flow / repeat(auto-fill, 200px);
+    gap: 10px;
+    justify-content: space-evenly;
+    place-items: center;
+
+    padding: 10px;
+}
+
+#solutions > mino-board {
+    padding: 10px;
+}
+
+#query {
+    margin: 10px;
+    padding: 10px;
+    width: max-content;
+
+    border: 1px solid black;
+    border-radius: 5px;
+    border-color: transparent;
+
+    display: grid;
+    grid-template-columns: 10rem 200px;
+    align-items: start;
+    gap: 20px 10px;
+}
+
+#query h1 {
+    grid-column: span 2;
+    margin: 0;
+}
+
+label {
+    cursor: pointer;
+}
+
+input {
+    background-color: #3b4252;
+    color: #fff;
+    border: 1px solid #434c5e;
+}
+
+
+#header {
+    margin: 10px;
+    padding: 20px;
+    width: 200px;
+}
+
+#header h1 {
+    margin: 0;
+    margin-bottom: 20px;
+}
+
+.loading {
+    width: 200px;
+    border-radius: 4px;
+    height: 104px;
+    /* margin: 10px; */
+    padding: 0;
+    left: -150%;
+    background: linear-gradient( 67deg, #3b4252 25%, #434c5e 50%, #4c566a 75% );
+    background-size: 200% 100%;
+    animation: shim 1.5s infinite linear;
+}
+@keyframes shim { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+section {
+    margin: 0;
+    padding: 10px 20px;
+}

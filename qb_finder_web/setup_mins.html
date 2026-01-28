@@ -3,86 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="https://monkieeboi.github.io/pc/favicon.ico" />
 
     <title>Minimals</title>
 
+    <link rel="icon" href="https://monkieeboi.github.io/pc/favicon.ico" />
+    <link rel="stylesheet" href="style.css" />
     <style type="text/css">
-      * {
-        font-family: monospace;
-      }
-
-      body {
-        color: #fff;
-        background-color: #2e3440;
-      }
-
-      #header {
-        margin: 10px;
-        padding: 20px;
-        width: 200px;
-      }
-
-      #header progress {
-        width: 100%;
-      }
-
-      #header h1 {
-        margin: 0;
-        margin-bottom: 20px;
-      }
-
-      .loading {
-        width: 200px;
-        border-radius: 4px;
-        height: 104px;
-        margin: 10px;
-        padding: 0;
-        left: -150%;
-        background: linear-gradient( 67deg, #3b4252 25%, #434c5e 50%, #4c566a 75% );
-        background-size: 200% 100%;
-        animation: shim 1.5s infinite linear;
-      }
-      @keyframes shim { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-
-      mino-board {
-        display: block;
-
-        width: 200px;
-        white-space: pre-line;
-        padding: 10px;
-      }
-
-      mino-board > svg {
-        border-radius: 4px;
-      }
-
-      section {
-        margin: 0;
-        padding: 10px 20px;
-      }
-
-      h2 {
-        font-size: large;
-      }
-
-      mino-board rect[fill="#F3F3ED"] {
-        fill: #3b4252;
-      }
-
-      mino-board rect[fill="#E7E7E2"] {
-        fill: #3b4252;
-      }
-
-      div {
-        display: grid;
-        grid: auto-flow / repeat(auto-fill, 200px);
-        gap: 10px;
-        justify-content: space-evenly;
-        place-items: center;
-
-        padding: 10px;
-      }
     </style>
   </head>
 
