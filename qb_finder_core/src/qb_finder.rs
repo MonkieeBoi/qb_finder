@@ -66,10 +66,14 @@ impl QBFinder {
     }
 
     pub fn find(&self, build_queue: &str, solve_queue: &str, save: char) -> Vec<BrokenBoard> {
+        let p_count = 11
+            - (self.start.board.0.count_ones() / 4) as usize
+            - build_queue.replace(",", "").len();
         let solve_queues = expand_pattern(solve_queue)
             .into_iter()
             .map(|q| {
                 q.chars()
+                    .take(p_count as usize)
                     .map(|c| {
                         let shape = parse_shape(c).expect("Invalid solve pattern");
                         Bag::new(&[shape], 1)
@@ -197,10 +201,7 @@ impl QBFinder {
             })
             .collect();
 
-        (
-            solves,
-            all_min_cover_sets(universe, &covering_queues)
-        )
+        (solves, all_min_cover_sets(universe, &covering_queues))
     }
 }
 
