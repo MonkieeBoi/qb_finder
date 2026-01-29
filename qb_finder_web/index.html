@@ -109,7 +109,7 @@
                 skip_4p: skip_4p.checked
             };
             if (!document.getElementById('loading')) {
-                solutions.querySelectorAll(':nth-child(n+4)').forEach(el => el.remove());
+                solutions.replaceChildren(...[...solutions.children].slice(0, 3));
                 document.querySelectorAll(".loading").forEach((el) => el.hidden = false);
                 worker.postMessage(work);
             }
