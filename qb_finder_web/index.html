@@ -90,11 +90,11 @@
                 params.set('solve_queue', work.solve_queue);
                 params.set('save', work.save);
                 let link = document.createElement("a");
-                link.target = "_blank";
                 link.appendChild(new MinoBoard(board));
-                link.href = `./setup_mins.html?${params.toString()}`;
                 if (min_count > 0) {
                     link.title = `Min Count: ${min_count}`;
+                    link.href = `./setup_mins.html?${params.toString()}`;
+                    link.target = "_blank";
                 }
 
                 solutions.appendChild(link);
