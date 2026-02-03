@@ -5,10 +5,7 @@ use std::{
 };
 
 use itertools::Itertools;
-use qb_finder_core::{
-    qb_finder::{QBFinder, expand_pattern, parse_shape},
-    solver,
-};
+use qb_finder_core::{QBFinder, expand_pattern, parse_shape, solver};
 use rustc_hash::FxHashSet;
 use srs_4l::{board_list, brokenboard::BrokenBoard, gameplay::Board};
 

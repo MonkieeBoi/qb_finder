@@ -1,12 +1,9 @@
 use itertools::Itertools;
 use js_sys::Uint8Array;
+use qb_finder_core::{QBFinder, expand_pattern, parse_shape, solver};
 use rustc_hash::FxHashSet;
 use std::io::Cursor;
 
-use qb_finder_core::{
-    qb_finder::{QBFinder, expand_pattern, parse_shape},
-    solver,
-};
 use srs_4l::{
     base64::{base64_decode, base64_encode},
     board_list,
