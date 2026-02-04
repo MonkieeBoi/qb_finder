@@ -84,7 +84,7 @@ fn main() {
         }
 
         let start = Instant::now();
-        let setups = qbf.find(buildq, &solveq, save);
+        let setups = qbf.find(buildq, None, &solveq, save);
 
         println!("Found {:?} setups in {:?}", setups.len(), start.elapsed());
         // for board in &setups {

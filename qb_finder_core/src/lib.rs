@@ -68,30 +68,38 @@ impl QBFinder {
         )
     }
 
-    pub fn find(&self, build_queue: &str, solve_queue: &str, save: char) -> Vec<BrokenBoard> {
+    pub fn find(
+        &self,
+        build_queue: &str,
+        build_save: Option<Shape>,
+        solve_queue: &str,
+        save: char,
+    ) -> Vec<BrokenBoard> {
         let p_count = 11
             - (self.start.board.0.count_ones() / 4) as usize
             - build_queue.replace(",", "").len();
         let solve_queues = expand_pattern(solve_queue)
             .into_iter()
             .map(|q| {
-                q.chars()
-                    .take(p_count as usize)
-                    .map(|c| {
+                build_save
+                    .map(|s| Bag::new(&[s], 1))
+                    .into_iter()
+                    .chain(q.chars().take(p_count as usize).map(|c| {
                         let shape = parse_shape(c).expect("Invalid solve pattern");
                         Bag::new(&[shape], 1)
-                    })
+                    }))
                     .collect()
             })
             .collect();
 
         let parsed_save = parse_shape(save);
 
-        let mut setups = if self.skip_4p && build_queue.replace(",", "").len() == 4 {
-            vec![]
-        } else {
-            self.compute(build_queue, &self.start, None)
-        };
+        let mut setups =
+            if self.skip_4p && build_queue.replace(",", "").len() == 4 && build_save.is_none() {
+                vec![]
+            } else {
+                self.compute(build_queue, &self.start, build_save)
+            };
 
         setups = setups
             .into_par_iter()
@@ -103,16 +111,10 @@ impl QBFinder {
                 )
             })
             .collect();
-        // Maybe switch to using save in build
-        if setups.len() == 0 && build_queue.replace(",", "").len() == 4 {
-            let build_pieces = build_queue.replace(",", "");
-            let xor = build_pieces.chars().fold(0, |a, c| a ^ (c as u8));
 
-            for p3 in build_pieces.chars().combinations(3).unique() {
-                let b: String = p3.iter().collect();
-                let r: String = ((xor ^ b.chars().fold(0, |a, c| a ^ (c as u8))) as char).into();
-
-                setups.extend(self.find(&b, &(r + "," + &solve_queue), save));
+        if setups.len() == 0 && build_queue.replace(",", "").len() == 4 && build_save.is_none() {
+            for p in build_queue.replace(",", "").chars().unique() {
+                setups.extend(self.find(build_queue, parse_shape(p), solve_queue, save));
             }
         }
         setups

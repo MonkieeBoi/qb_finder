@@ -39,7 +39,7 @@ impl QBF {
     }
 
     pub fn find(&self, build_queue: &str, solve_queue: &str, save: char) -> String {
-        let setups = self.qbf.find(build_queue, &solve_queue, save);
+        let setups = self.qbf.find(build_queue, None, &solve_queue, save);
         let solve_queues: FxHashSet<String> = expand_pattern(&solve_queue).into_iter().collect();
         let min_setups: Vec<_> = setups
             .iter()
