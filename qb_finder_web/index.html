@@ -124,6 +124,15 @@
 
         [build_queue, solve_queue, save].forEach(input => {
             input.addEventListener("beforeinput", function (event) {
+                if (input === solve_queue && event.data === " ") {
+                    const pieces = new Set("TIJLOSZ");
+                    const sset = new Set(solve_queue.value.toUpperCase());
+                    const remaining = pieces.difference(sset);
+
+                    if (remaining.size > 0) {
+                        solve_queue.value += "," + [...remaining].join('');
+                    }
+                }
                 if (event.data && !/[toiljsz,]/ig.test(event.data)) {
                     event.preventDefault();
                 }
@@ -133,21 +142,6 @@
         window.addEventListener("keydown", (ev) => {
             if (ev.key == "Enter" || ev.keyCode == 13 || ev.which == 13) {
                 doSolve();
-            }
-        });
-
-        solve_queue.addEventListener("keydown", (ev) => {
-            if (ev.key == " " || ev.code == "Space" || ev.keyCode == 32) {
-                const pieces = new Set("TIJLOSZ");
-                const sset = new Set(solve_queue.value);
-
-                const remaining = pieces.difference(sset);
-
-                if (remaining.size > 0) {
-                    solve_queue.value += "," + [...remaining].join('');
-                }
-
-                ev.preventDefault();
             }
         });
     </script>
