@@ -41,6 +41,8 @@
     <script src="pkg/qb_finder_web.js"></script>
 
     <script type="module">
+        const { encoder, Field } = await import("https://cdn.jsdelivr.net/npm/tetris-fumen/+esm");
+
         let worker = new Worker("worker.js");
         let work = null;
 
@@ -96,7 +98,12 @@
                     link.href = `./setup_mins.html?${params.toString()}`;
                     link.target = "_blank";
                 }
-
+                link.addEventListener("click", (e) => {
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        navigator.clipboard.writeText(encoder.encode([{field:Field.create(board.replaceAll("G","X")),flags:{lock:false}}]));
+                    }
+                });
                 solutions.appendChild(link);
             }
         }

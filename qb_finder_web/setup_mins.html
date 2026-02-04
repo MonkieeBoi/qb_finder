@@ -32,6 +32,7 @@
     <script src="mino-board.js"></script>
     <script src="pkg/qb_finder_web.js"></script>
     <script type="module">
+      const { encoder, Field } = await import("https://cdn.jsdelivr.net/npm/tetris-fumen/+esm");
       let worker = new Worker("worker.js");
       let header = document.getElementById("header");
       let common = document.getElementById("common");
@@ -55,7 +56,11 @@
         header.appendChild(new MinoBoard(board));
 
         for (const solve of commons.split(",")) {
-          common.appendChild(new MinoBoard(solve));
+          const mino_board = new MinoBoard(solve);
+          mino_board.addEventListener("click", (e) => {
+              navigator.clipboard.writeText(encoder.encode([{field:Field.create(solve.replaceAll("G","X")),flags:{lock:false}}]));
+          });
+          common.appendChild(mino_board);
         }
 
         for (const [i, solves] of uniques.entries()) {
@@ -67,7 +72,11 @@
           label.textContent = `Set ${i + 1}`;
           unique.appendChild(label);
           for (const solve of solves.split(",")) {
-            container.appendChild(new MinoBoard(solve));
+            const mino_board = new MinoBoard(solve);
+            mino_board.addEventListener("click", (e) => {
+                navigator.clipboard.writeText(encoder.encode([{field:Field.create(solve.replaceAll("G","X")),flags:{lock:false}}]));
+            });
+            container.appendChild(mino_board);
           }
           unique.appendChild(container);
         }

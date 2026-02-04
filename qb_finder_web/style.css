@@ -12,6 +12,7 @@ mino-board {
 
     width: 200px;
     white-space: pre-line;
+    cursor: pointer;
 }
 
 mino-board > svg {
