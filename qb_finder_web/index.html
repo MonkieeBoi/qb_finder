@@ -56,7 +56,7 @@
             if (message.data.kind == "ready") {
                 document.getElementById("loading").remove();
 
-                if (work != null) {
+                if (work != null && work.build_queue && work.solve_queue) {
                     worker.postMessage(work);
                     document.querySelectorAll(".loading").forEach((el) => el.hidden = false);
                 }
@@ -144,6 +144,13 @@
                 doSolve();
             }
         });
+
+        const params = new URLSearchParams(window.location.search);
+        build_queue.value = params.get("build_queue");
+        solve_queue.value = params.get("solve_queue")
+        save.value = params.get("save") || 'T';
+        doSolve()
+
     </script>
 
 </body>
