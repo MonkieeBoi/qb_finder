@@ -2,7 +2,8 @@
 members = [
     "qb_finder_cli",
     "qb_finder_core",
-    "qb_finder_web"
+    "qb_finder_web",
+    "py_qbf"
 ]
 resolver = "2"
 
