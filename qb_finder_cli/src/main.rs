@@ -25,7 +25,7 @@ fn emoji_map(c: char) -> char {
 }
 
 fn print_board(board: &BrokenBoard) {
-    let mut str = String::new();
+    let mut str = String::with_capacity(40);
     solver::print(&board, &mut str);
     str = str
         .chars()

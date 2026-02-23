@@ -49,7 +49,7 @@ impl QBSolver {
         let res: Vec<String> = solves
             .iter()
             .map(|solve| {
-                let mut board_str = String::new();
+                let mut board_str = String::with_capacity(40);
                 solver::print(solve, &mut board_str);
                 board_str
             })

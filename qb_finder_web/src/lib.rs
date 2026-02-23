@@ -2,6 +2,7 @@ use itertools::Itertools;
 use js_sys::Uint8Array;
 use qb_finder_core::{QBFinder, expand_pattern, parse_shape, solver};
 use rustc_hash::FxHashSet;
+use std::fmt::Write;
 use std::io::Cursor;
 
 use srs_4l::{
@@ -81,7 +82,7 @@ impl QBF {
 
         for (board, min_count) in &min_setups {
             solver::print(&board, &mut res);
-            res.push_str(&format!(",{},", min_count));
+            write!(res, ",{},", min_count).ok();
             base64_encode(&board.encode(), &mut res);
             res.push('|');
         }
