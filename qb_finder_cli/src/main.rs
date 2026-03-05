@@ -5,7 +5,7 @@ use std::{
 };
 
 use itertools::Itertools;
-use qb_finder_core::{QBFinder, expand_pattern, parse_shape, solver};
+use qb_finder_core::{QBFinder, expand_pattern, solver};
 use rustc_hash::FxHashSet;
 use srs_4l::{board_list, brokenboard::BrokenBoard, gameplay::Board};
 
@@ -73,7 +73,7 @@ fn main() {
             .expect("Failed to read line");
         let mut solveq = input.trim().to_owned();
 
-        let save = 'T';
+        let saves = "TO";
         let pieces = "TIOLJSZ";
         let remaining = pieces
             .chars()
@@ -84,7 +84,7 @@ fn main() {
         }
 
         let start = Instant::now();
-        let setups = qbf.find(buildq, None, &solveq, save);
+        let (setups, _) = qbf.find(buildq, None, &solveq, saves, 1);
 
         println!("Found {:?} setups in {:?}", setups.len(), start.elapsed());
         // for board in &setups {
@@ -114,10 +114,10 @@ fn main() {
                             b,
                             &(r.clone() + &solveq),
                             &solve_queues.clone().iter().map(|q| r.clone() + q).collect(),
-                            parse_shape(save),
+                            saves,
                         )
                     } else {
-                        qbf.min_count(b, &solveq, &solve_queues, parse_shape(save))
+                        qbf.min_count(b, &solveq, &solve_queues, saves)
                     }
                 })
             })

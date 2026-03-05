@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use js_sys::Uint8Array;
-use qb_finder_core::{QBFinder, expand_pattern, parse_shape, solver};
+use qb_finder_core::{QBFinder, expand_pattern, solver};
 use rustc_hash::FxHashSet;
 use std::fmt::Write;
 use std::io::Cursor;
@@ -39,8 +39,8 @@ impl QBF {
         self.qbf.skip_4p = skip_4p;
     }
 
-    pub fn find(&self, build_queue: &str, solve_queue: &str, save: char) -> String {
-        let setups = self.qbf.find(build_queue, None, &solve_queue, save);
+    pub fn find(&self, build_queue: &str, solve_queue: &str, saves: &str) -> String {
+        let (setups, _) = self.qbf.find(build_queue, None, &solve_queue, saves, 1);
         let solve_queues: FxHashSet<String> = expand_pattern(&solve_queue).into_iter().collect();
         let build_xor = build_queue
             .replace(",", "")
@@ -66,12 +66,12 @@ impl QBF {
                                 b,
                                 &(r.clone() + &solve_queue),
                                 &solve_queues.clone().iter().map(|q| r.clone() + q).collect(),
-                                parse_shape(save),
+                                saves,
                             )
                         }
                         _ => self
                             .qbf
-                            .min_count(b, &solve_queue, &solve_queues, parse_shape(save)),
+                            .min_count(b, &solve_queue, &solve_queues, saves),
                     },
                 )
             })
@@ -96,7 +96,7 @@ impl QBF {
         setup: &str,
         build_queue: &str,
         solve_queue: &str,
-        save: char,
+        saves: &str,
     ) -> String {
         let mut res = String::new();
 
@@ -133,11 +133,11 @@ impl QBF {
                 &board,
                 &(r.clone() + &solve_queue),
                 &solve_queues.clone().iter().map(|q| r.clone() + q).collect(),
-                parse_shape(save),
+                saves,
             )
         } else {
             self.qbf
-                .all_min_sets(&board, &solve_queue, &solve_queues, parse_shape(save))
+                .all_min_sets(&board, &solve_queue, &solve_queues, saves)
         };
 
         let mut common: FxHashSet<usize> = covers[0].iter().cloned().collect();
