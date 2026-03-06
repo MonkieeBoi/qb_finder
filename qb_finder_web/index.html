@@ -124,17 +124,26 @@
 
         [build_queue, solve_queue, save].forEach(input => {
             input.addEventListener("beforeinput", function (event) {
-                if (input === solve_queue && event.data === " ") {
-                    const pieces = new Set("TIJLOSZ");
+                const data = event.data;
+                if (!data) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                if (input === solve_queue && data === " ") {
                     const sset = new Set(solve_queue.value.toUpperCase());
-                    const remaining = pieces.difference(sset);
+                    const remaining = (new Set("TIJLOSZ")).difference(sset);
 
                     if (remaining.size > 0) {
-                        solve_queue.value += "," + [...remaining].join('');
+                        if (solve_queue.value && !solve_queue.value.endsWith(',')) {
+                            solve_queue.value += ',';
+                        }
+                        solve_queue.value += [...remaining].join('');
                     }
                 }
-                if (event.data && !/[toiljsz,]/ig.test(event.data)) {
-                    event.preventDefault();
+                if (/[toiljsz,]/ig.test(event.data)) {
+                    input.value += event.data.toUpperCase();
                 }
             });
         })
