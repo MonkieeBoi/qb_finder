@@ -31,7 +31,7 @@ impl QBFinder {
             start: BrokenBoard::from_garbage(0),
             hold: true,
             physics: Physics::Jstris,
-            skip_4p: true,
+            skip_4p: false,
         }
     }
 

@@ -73,7 +73,7 @@ fn main() {
             .expect("Failed to read line");
         let mut solveq = input.trim().to_owned();
 
-        let saves = "TO";
+        let saves = "T";
         let pieces = "TIOLJSZ";
         let remaining = pieces
             .chars()

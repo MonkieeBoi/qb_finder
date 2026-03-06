@@ -57,6 +57,29 @@ impl QBSolver {
 
         Ok(res)
     }
+
+    #[pyo3(signature = (build_queue, solve_queue, saves=""))]
+    fn find_qb(
+        &self,
+        py: Python,
+        build_queue: &str,
+        solve_queue: &str,
+        saves: &str,
+    ) -> PyResult<(Vec<String>, usize)> {
+        let (setups, save_count) =
+            py.detach(|| self.qbf.find(build_queue, None, solve_queue, saves, 1));
+
+        let res: Vec<String> = setups
+            .iter()
+            .map(|solve| {
+                let mut board_str = String::with_capacity(40);
+                solver::print(solve, &mut board_str);
+                board_str
+            })
+            .collect();
+
+        Ok((res, save_count))
+    }
 }
 
 #[pymodule]
