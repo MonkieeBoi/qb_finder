@@ -112,9 +112,9 @@
 
         function doSolve() {
             work = {
-                build_queue: build_queue.value,
-                solve_queue: solve_queue.value,
-                save: save.value,
+                build_queue: build_queue.value.toUpperCase(),
+                solve_queue: solve_queue.value.toUpperCase(),
+                save: save.value.toUpperCase(),
                 skip_4p: skip_4p.checked,
                 cover: cover.checked
             };
@@ -132,8 +132,6 @@
                     return;
                 }
 
-                event.preventDefault();
-
                 if (input === solve_queue && data === " ") {
                     const sset = new Set(solve_queue.value.toUpperCase());
                     const remaining = (new Set("TIJLOSZ")).difference(sset);
@@ -144,9 +142,10 @@
                         }
                         solve_queue.value += [...remaining].join('');
                     }
+                    event.preventDefault();
                 }
-                if (/[toiljsz,]/ig.test(event.data)) {
-                    input.value += event.data.toUpperCase();
+                if (!/[toiljsz,]/ig.test(event.data)) {
+                    event.preventDefault();
                 }
             });
         })
