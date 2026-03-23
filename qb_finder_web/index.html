@@ -25,7 +25,8 @@
             <input type="text" id="build_queue" placeholder="T,TSZ">
             <input type="text" id="solve_queue" placeholder="T,LJ,I,OSZ">
             <input type="text" id="save" maxlength="7" value="T">
-            <label><input id="skip_4p" type="checkbox"> Skip 4p</label>
+            <label><input id="skip_4p" type="checkbox">Skip 4p</label>
+            <label><input id="cover" type="checkbox">Full Cover</label>
         </div>
 
     </div>
@@ -50,6 +51,7 @@
         let solve_queue = document.getElementById("solve_queue");
         let solutions = document.getElementById("solutions");
         let skip_4p = document.getElementById("skip_4p");
+        let cover = document.getElementById("cover");
         let save = document.getElementById("save");
 
         worker.onmessage = message => {
@@ -113,7 +115,8 @@
                 build_queue: build_queue.value,
                 solve_queue: solve_queue.value,
                 save: save.value,
-                skip_4p: skip_4p.checked
+                skip_4p: skip_4p.checked,
+                cover: cover.checked
             };
             if (!document.getElementById('loading')) {
                 solutions.replaceChildren(...[...solutions.children].slice(0, 3));

@@ -33,6 +33,7 @@ async function main() {
         }
 
         qbf.set_skip_4p(query.skip_4p);
+        qbf.set_full_cover(query.cover);
 
         let setups = qbf.find(
             query.build_queue.toUpperCase(),

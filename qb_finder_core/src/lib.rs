@@ -22,6 +22,7 @@ pub struct QBFinder {
     hold: bool,
     physics: Physics,
     pub skip_4p: bool,
+    pub full_cover: bool,
 }
 
 impl QBFinder {
@@ -32,6 +33,7 @@ impl QBFinder {
             hold: true,
             physics: Physics::Jstris,
             skip_4p: false,
+            full_cover: true,
         }
     }
 
@@ -42,14 +44,15 @@ impl QBFinder {
         saves: &[Shape],
         cur_best: usize,
     ) -> usize {
-        let max_fail = solve_queues.len().saturating_sub(cur_best);
         let p_save = saves.first().copied();
         let s_saves = saves.get(1..).unwrap_or_default();
 
         let mut res = 0;
-        let mut fails = 0;
 
-        for q in solve_queues {
+        for (i, q) in solve_queues.iter().enumerate() {
+            if res + (solve_queues.len() - i) < cur_best {
+                return 0;
+            }
             if !solver::compute(
                 &self.legal_boards,
                 setup,
@@ -64,8 +67,8 @@ impl QBFinder {
                 continue;
             }
 
-            if s_saves.iter().any(|&s| {
-                !solver::compute(
+            if s_saves.iter().all(|&s| {
+                solver::compute(
                     &self.legal_boards,
                     setup,
                     q,
@@ -75,11 +78,6 @@ impl QBFinder {
                 )
                 .is_empty()
             }) {
-                fails += 1;
-                if fails > max_fail {
-                    return 0;
-                }
-            } else {
                 return 0;
             }
         }
@@ -97,7 +95,7 @@ impl QBFinder {
             setup,
             &pattern_bags(queue),
             true,
-            Physics::Jstris,
+            self.physics,
             save,
         )
     }
@@ -135,6 +133,28 @@ impl QBFinder {
             } else {
                 self.compute(build_queue, &self.start, build_save)
             };
+
+        // REALLY SLOW LOL, LEGIT FASTER TO USE EYES ON ALL SETUPS
+        if self.full_cover {
+            let build_queues: Vec<_> = expand_pattern(build_queue)
+                .into_iter()
+                .map(|q| q.chars().filter_map(parse_shape).collect())
+                .collect();
+            setups = setups
+                .into_iter()
+                .filter(|setup| {
+                    let scover: Vec<_> = setup
+                        .supporting_queues(self.physics)
+                        .iter()
+                        .flat_map(|&q| match build_save {
+                            Some(s) => q.push_last(s).unhold(),
+                            None => q.unhold(),
+                        })
+                        .collect();
+                    build_queues.iter().all(|q| scover.contains(q))
+                })
+                .collect();
+        }
 
         let primary_save_count = AtomicUsize::new(min_saves);
 
@@ -207,13 +227,13 @@ impl QBFinder {
                 &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
                 &pattern_bags(pattern),
                 true,
-                Physics::Jstris,
+                self.physics,
                 save,
             );
 
             for solve in solves {
                 let cover: Vec<String> = solve
-                    .supporting_queues(Physics::Jstris)
+                    .supporting_queues(self.physics)
                     .iter()
                     .flat_map(|&q| match save {
                         Some(s) => q.push_last(s).unhold(),

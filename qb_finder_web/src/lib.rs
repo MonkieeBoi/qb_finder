@@ -39,6 +39,11 @@ impl QBF {
         self.qbf.skip_4p = skip_4p;
     }
 
+    pub fn set_full_cover(&mut self, full_cover: bool) {
+        self.qbf.full_cover = full_cover;
+    }
+
+
     pub fn find(&self, build_queue: &str, solve_queue: &str, saves: &str) -> String {
         let (setups, _) = self.qbf.find(build_queue, None, &solve_queue, saves, 1);
         let solve_queues: FxHashSet<String> = expand_pattern(&solve_queue).into_iter().collect();
