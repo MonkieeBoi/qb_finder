@@ -33,7 +33,7 @@ impl QBFinder {
             hold: true,
             physics: Physics::Jstris,
             skip_4p: false,
-            full_cover: true,
+            full_cover: false,
         }
     }
 
@@ -134,14 +134,13 @@ impl QBFinder {
                 self.compute(build_queue, &self.start, build_save)
             };
 
-        // REALLY SLOW LOL, LEGIT FASTER TO USE EYES ON ALL SETUPS
         if self.full_cover {
             let build_queues: Vec<_> = expand_pattern(build_queue)
                 .into_iter()
                 .map(|q| q.chars().filter_map(parse_shape).collect())
                 .collect();
             setups = setups
-                .into_iter()
+                .into_par_iter()
                 .filter(|setup| {
                     let scover: Vec<_> = setup
                         .supporting_queues(self.physics)
