@@ -1,6 +1,8 @@
+use dashmap::DashMap;
 use itertools::Itertools;
 use pyo3::prelude::*;
 use qb_finder_core::{QBFinder, parse_shape, solver};
+use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use srs_4l::{
     board_list,
@@ -21,7 +23,8 @@ struct QBSolver {
 #[pymethods]
 impl QBSolver {
     #[new]
-    fn new() -> PyResult<Self> {
+    #[pyo3(signature = (threads=1))]
+    fn new(threads: usize) -> PyResult<Self> {
         let bytes = include_bytes!("../../legal-boards.leb128");
 
         let legal_boards: FxHashSet<Board> = board_list::read(Cursor::new(bytes))
@@ -33,7 +36,10 @@ impl QBSolver {
             })?
             .into_iter()
             .collect();
-
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build_global()
+            .unwrap_or(());
         Ok(QBSolver {
             qbf: QBFinder::new(legal_boards),
         })
@@ -93,10 +99,9 @@ impl QBSolver {
     }
 
     #[pyo3(signature = (fifth))]
-    fn bestsaves(&mut self, fifth: &str) -> PyResult<HashMap<String, Vec<String>>> {
-        let mut res = HashMap::new();
+    fn bestsaves(&mut self, py: Python, fifth: &str) -> PyResult<HashMap<String, Vec<String>>> {
         if fifth.len() != 2 {
-            return Ok(res);
+            return Ok(HashMap::new());
         }
         fn bestsaves_queues(setup: &BrokenBoard, queue: &str, qbf: &QBFinder) -> Vec<String> {
             let pieces = "IJLOSZ";
@@ -141,33 +146,46 @@ impl QBSolver {
             res.iter().cloned().collect::<Vec<String>>()
         }
         let pieces = "TIJLOSZ";
-        for p3 in pieces.chars().permutations(3) {
-            let q = format!("{},{}", fifth, p3.iter().collect::<String>());
-            for save in fifth.chars().chain(p3.iter().copied()).unique() {
-                let setups = self
-                    .qbf
-                    .compute(&q, &BrokenBoard::from_garbage(0), parse_shape(save));
-                let remaining: String = pieces.chars().filter(|c| !p3.contains(c)).collect();
-                let qqq = format!("{},{}", save, remaining);
-                for setup in setups {
-                    let queues = bestsaves_queues(&setup, &qqq, &self.qbf);
-                    if queues.is_empty() {
-                        continue;
-                    }
-                    let mut board_str = String::with_capacity(40);
-                    solver::print(&setup, &mut board_str);
-                    for queue in queues {
-                        if !queue.starts_with(save) {
+
+        let perms: Vec<_> = pieces.chars().permutations(3).collect();
+
+        let res: DashMap<String, Vec<String>> = DashMap::new();
+
+        py.detach(|| {
+            perms.into_par_iter().for_each(|p3| {
+                let p3_str: String = p3.iter().collect();
+                let q = format!("{},{}", fifth, p3_str);
+
+                for save in fifth.chars().chain(p3.iter().copied()).unique() {
+                    let setups =
+                        self.qbf
+                            .compute(&q, &BrokenBoard::from_garbage(0), parse_shape(save));
+                    let remaining: String = pieces.chars().filter(|c| !p3.contains(c)).collect();
+                    let qqq = format!("{},{}", save, remaining);
+
+                    for setup in setups {
+                        let queues = bestsaves_queues(&setup, &qqq, &self.qbf);
+                        if queues.is_empty() {
                             continue;
                         }
-                        let fullq = format!("{}{}", p3.iter().collect::<String>(), queue.replacen(save, "", 1));
-                        res.entry(fullq)
-                            .or_insert_with(Vec::new)
-                            .push(board_str.clone());
+
+                        let mut board_str = String::with_capacity(40);
+                        solver::print(&setup, &mut board_str);
+
+                        for queue in queues {
+                            if !queue.starts_with(save) {
+                                continue;
+                            }
+
+                            let fullq = format!("{}{}", p3_str, queue.replacen(save, "", 1));
+
+                            res.entry(fullq).or_default().push(board_str.clone());
+                        }
                     }
                 }
-            }
-        }
+            });
+        });
+        let res: HashMap<String, Vec<String>> = res.into_iter().collect();
 
         Ok(res)
     }
