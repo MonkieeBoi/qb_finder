@@ -140,7 +140,10 @@ impl QBSolver {
                 if i == 0 {
                     res = cover;
                 } else {
-                    res = res.intersection(&cover).cloned().collect();
+                    res.retain(|q| cover.contains(q));
+                    if res.is_empty() {
+                        return vec![];
+                    }
                 }
             }
             res.iter().cloned().collect::<Vec<String>>()
@@ -154,7 +157,7 @@ impl QBSolver {
         py.detach(|| {
             perms.into_par_iter().for_each(|p3| {
                 let p3_str: String = p3.iter().collect();
-                let q = format!("{},{}", fifth, p3_str);
+                let q = format!("{}{}", fifth, p3_str).chars().join(",");
 
                 for save in fifth.chars().chain(p3.iter().copied()).unique() {
                     let setups =
