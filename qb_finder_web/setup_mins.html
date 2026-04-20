@@ -28,6 +28,7 @@
     </section>
 
     <section id="unique"></section>
+    <section id="equiv"></section>
 
     <script src="mino-board.js"></script>
     <script src="pkg/qb_finder_web.js"></script>
@@ -37,6 +38,7 @@
       let header = document.getElementById("header");
       let common = document.getElementById("common");
       let unique = document.getElementById("unique");
+      let equiv = document.getElementById("equiv");
       const params = new URLSearchParams(window.location.search);
 
       worker.onmessage = message => {
@@ -49,7 +51,12 @@
           });
           return;
         }
-        let [board, commons, ...uniques] = message.data.res.split("|");
+        let [start, equivs] = message.data.res.split("&");
+        console.log(message.data.res);
+        console.log(message.data.res.split("&"));
+        console.log(equivs);
+        let [board, commons, ...uniques] = start.split("|");
+        equivs = equivs.split("|")
 
         document.querySelectorAll(".loading").forEach((el) => el.remove());
 
@@ -79,6 +86,24 @@
             container.appendChild(mino_board);
           }
           unique.appendChild(container);
+        }
+
+        for (const [i, solves] of equivs.entries()) {
+          if (solves == "") {
+            continue;
+          }
+          let container = document.createElement("div");
+          let label = document.createElement("h2");
+          label.textContent = `Equivalent solves ${i + 1}`;
+          equiv.appendChild(label);
+          for (const solve of solves.split(",")) {
+            const mino_board = new MinoBoard(solve);
+            mino_board.addEventListener("click", (e) => {
+                navigator.clipboard.writeText(encoder.encode([{field:Field.create(solve.replaceAll("G","X")),flags:{lock:false}}]));
+            });
+            container.appendChild(mino_board);
+          }
+          equiv.appendChild(container);
         }
       }
     </script>

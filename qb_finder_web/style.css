@@ -27,7 +27,7 @@ mino-board rect[fill="#E7E7E2"] {
     fill: #3b4252;
 }
 
-#solutions, #common, #unique > div {
+#solutions, #common, #unique > div, #equiv > div {
     display: grid;
     grid: auto-flow / repeat(auto-fill, 200px);
     gap: 10px;

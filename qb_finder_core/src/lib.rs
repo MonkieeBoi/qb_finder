@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use itertools::Itertools;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use srs_4l::{
     brokenboard::BrokenBoard,
     gameplay::{Board, Physics, Shape},
@@ -264,7 +264,11 @@ impl QBFinder {
         pattern: &str,
         universe: &FxHashSet<String>,
         saves: &str,
-    ) -> (Vec<BrokenBoard>, Vec<Vec<usize>>) {
+    ) -> (
+        Vec<BrokenBoard>,
+        Vec<Vec<usize>>,
+        FxHashMap<usize, Vec<usize>>,
+    ) {
         let mut covering_queues = vec![];
         let mut primary_cover = FxHashSet::default();
         let pattern_xor = pattern.replace(',', "").bytes().fold(0, |acc, b| acc ^ b);
@@ -277,12 +281,9 @@ impl QBFinder {
         };
 
         let mut all_solves = vec![];
+        let mut equivalent_map: FxHashMap<usize, Vec<usize>> = FxHashMap::default();
 
         for (i, &save) in saves_to_check.iter().enumerate() {
-            if primary_cover.len() == universe.len() {
-                break;
-            }
-
             let solves = solver::compute(
                 &self.legal_boards,
                 &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
@@ -292,8 +293,10 @@ impl QBFinder {
                 save,
             );
 
+            let mut solve_cover_hashsets: Vec<FxHashSet<String>> = vec![];
+
             for solve in &solves {
-                let cover: Vec<String> = solve
+                let mut cover: Vec<String> = solve
                     .supporting_queues(Physics::Jstris)
                     .iter()
                     .flat_map(|&q| match save {
@@ -311,6 +314,19 @@ impl QBFinder {
                     .filter(|q| universe.contains(q) && (i == 0 || !primary_cover.contains(q)))
                     .collect();
 
+                let mut cover_set: FxHashSet<String> = cover.iter().cloned().collect();
+
+                for (j, previous_solve) in solve_cover_hashsets.iter().enumerate() {
+                    if &cover_set == previous_solve {
+                        cover.clear();
+                        cover_set.clear();
+                        equivalent_map.entry(j + all_solves.len()).or_default().push(covering_queues.len());
+                        break;
+                    }
+                }
+
+                solve_cover_hashsets.push(cover_set);
+
                 if i == 0 {
                     primary_cover.extend(cover.clone());
                 }
@@ -318,7 +334,14 @@ impl QBFinder {
             }
             all_solves.extend(solves);
         }
-        (all_solves, all_min_cover_sets(universe, &covering_queues))
+        let all_sets = all_min_cover_sets(universe, &covering_queues);
+        let used_solves: FxHashSet<usize> = all_sets.iter().cloned().flatten().collect();
+        equivalent_map.retain(|k, _| used_solves.contains(k));
+        (
+            all_solves,
+            all_sets,
+            equivalent_map,
+        )
     }
 }
 
