@@ -35,18 +35,23 @@ async function main() {
         qbf.set_skip_4p(query.skip_4p);
         qbf.set_full_cover(query.cover);
 
-        let setups = qbf.find(
-            query.build_queue.toUpperCase(),
-            query.solve_queue.toUpperCase(),
-            query.save.toUpperCase(),
-        )
-            .split("|");
+        try {
+            let setups = qbf.find(
+                query.build_queue.toUpperCase(),
+                query.solve_queue.toUpperCase(),
+                query.save.toUpperCase(),
+            )
+                .split("|");
 
-        if (setups[0] == "") {
-            setups = [];
+            if (setups[0] == "") {
+                setups = [];
+            }
+
+            postMessage({ kind: "ok", query, setups: setups });
+        } catch (err) {
+            console.error(err);
+            postMessage({ kind: "err", err: err });
         }
-
-        postMessage({ kind: "ok", query, setups: setups });
     };
 }
 

@@ -320,7 +320,10 @@ impl QBFinder {
                     if &cover_set == previous_solve {
                         cover.clear();
                         cover_set.clear();
-                        equivalent_map.entry(j + all_solves.len()).or_default().push(covering_queues.len());
+                        equivalent_map
+                            .entry(j + all_solves.len())
+                            .or_default()
+                            .push(covering_queues.len());
                         break;
                     }
                 }
@@ -337,41 +340,44 @@ impl QBFinder {
         let all_sets = all_min_cover_sets(universe, &covering_queues);
         let used_solves: FxHashSet<usize> = all_sets.iter().cloned().flatten().collect();
         equivalent_map.retain(|k, _| used_solves.contains(k));
-        (
-            all_solves,
-            all_sets,
-            equivalent_map,
-        )
+        (all_solves, all_sets, equivalent_map)
     }
 }
 
 fn pattern_bags(pattern: &str) -> Vec<Bag> {
     let mut bags = Vec::new();
-    for bag in pattern.split(",") {
-        let shapes = bag
-            .chars()
-            .map(parse_shape)
-            .collect::<Option<Vec<Shape>>>()
-            .unwrap();
-        bags.push(Bag::new(&shapes, bag.len() as u8));
+    for line in pattern.lines() {
+        for bag in line.trim().split(",") {
+            let shapes = bag
+                .chars()
+                .map(parse_shape)
+                .collect::<Option<Vec<Shape>>>()
+                .unwrap();
+            bags.push(Bag::new(&shapes, bag.len() as u8));
+        }
     }
     bags
 }
 
 pub fn expand_pattern(pattern: &str) -> Vec<String> {
     pattern
-        .split(",")
-        .map(|group| {
-            let len = group.len();
-            group
-                .chars()
-                .permutations(len)
-                .unique()
-                .map(|p| p.into_iter().collect::<String>())
-                .collect_vec()
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .flat_map(|line| {
+            line.split(",")
+                .map(|group| {
+                    let len = group.len();
+                    group
+                        .chars()
+                        .permutations(len)
+                        .unique()
+                        .map(|p| p.into_iter().collect::<String>())
+                        .collect_vec()
+                })
+                .multi_cartesian_product()
+                .map(|prod| prod.join(""))
         })
-        .multi_cartesian_product()
-        .map(|prod| prod.join(""))
         .collect()
 }
 

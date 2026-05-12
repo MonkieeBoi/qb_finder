@@ -23,7 +23,7 @@
         </div>
         <div style="display: grid; gap: 5px;">
             <input type="text" id="build_queue" placeholder="T,TSZ">
-            <input type="text" id="solve_queue" placeholder="T,LJ,I,OSZ">
+            <textarea type="text" id="solve_queue" placeholder="T,LJ,I,OSZ"></textarea>
             <input type="text" id="save" maxlength="7" value="T">
             <label><input id="skip_4p" type="checkbox">Skip 4p</label>
             <label><input id="cover" type="checkbox">Full Cover</label>
@@ -62,6 +62,13 @@
                     worker.postMessage(work);
                     document.querySelectorAll(".loading").forEach((el) => el.hidden = false);
                 }
+                return;
+            }
+
+
+            if (message.data.kind == "err") {
+                document.querySelectorAll(".loading").forEach((el) => el.hidden = true);
+                solutions.append(message.data.err);
                 return;
             }
 
@@ -133,15 +140,18 @@
                 }
 
                 if (input === solve_queue && data === " ") {
-                    const sset = new Set(solve_queue.value.toUpperCase());
-                    const remaining = (new Set("TIJLOSZ")).difference(sset);
+                    const v = solve_queue.value
+                    const s = solve_queue.selectionStart;
+                    const end = v.indexOf('\n', s) === -1 ? v.length : v.indexOf('\n', s);
+                    const line = v.slice(v.lastIndexOf('\n', s - 1) + 1, end);
 
-                    if (remaining.size > 0) {
-                        if (solve_queue.value && !solve_queue.value.endsWith(',')) {
-                            solve_queue.value += ',';
-                        }
-                        solve_queue.value += [...remaining].join('');
+                    const rem = [...new Set("TIJLOSZ").difference(new Set(line.toUpperCase()))];
+
+                    if (rem.length) {
+                        const pre = line && !line.endsWith(',') ? "," : "";
+                        solve_queue.setRangeText(pre + rem.join(''), end, end, 'end');
                     }
+
                     event.preventDefault();
                 }
                 if (!/[toiljsz,]/ig.test(event.data)) {
@@ -150,8 +160,17 @@
             });
         })
 
+        solve_queue.addEventListener('input', () => {
+            if (solve_queue.value.includes('\n')) {
+                solve_queue.classList.add('can-resize');
+            } else {
+                solve_queue.classList.remove('can-resize');
+            }
+        });
+
         window.addEventListener("keydown", (ev) => {
-            if (ev.key == "Enter" || ev.keyCode == 13 || ev.which == 13) {
+            if (!ev.shiftKey && (ev.key == "Enter" || ev.keyCode == 13 || ev.which == 13)) {
+                ev.preventDefault();
                 doSolve();
             }
         });

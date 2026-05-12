@@ -65,13 +65,22 @@ label {
     cursor: pointer;
 }
 
-input {
+input, textarea {
     background-color: #3b4252;
     color: #fff;
     border: 1px solid #434c5e;
     text-transform: uppercase;
 }
 
+textarea {
+    resize: none;
+    overflow: hidden;
+    height: 18px;
+}
+
+textarea.can-resize {
+    resize: vertical;
+}
 
 #header {
     margin: 10px;
