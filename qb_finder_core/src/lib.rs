@@ -90,14 +90,22 @@ impl QBFinder {
         setup: &BrokenBoard,
         save: Option<Shape>,
     ) -> Vec<BrokenBoard> {
-        solver::compute(
-            &self.legal_boards,
-            setup,
-            &pattern_bags(queue),
-            true,
-            self.physics,
-            save,
-        )
+        queue
+            .lines()
+            .map(|l| l.trim())
+            .filter(|l| !l.is_empty())
+            .flat_map(|pattern| {
+                solver::compute(
+                    &self.legal_boards,
+                    setup,
+                    &pattern_bags(pattern),
+                    true,
+                    self.physics,
+                    save,
+                )
+            })
+            .unique()
+            .collect()
     }
 
     pub fn find(
@@ -221,12 +229,9 @@ impl QBFinder {
                 break;
             }
 
-            let solves = solver::compute(
-                &self.legal_boards,
+            let solves = self.compute(
+                pattern,
                 &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
-                &pattern_bags(pattern),
-                true,
-                self.physics,
                 save,
             );
 
@@ -284,12 +289,9 @@ impl QBFinder {
         let mut equivalent_map: FxHashMap<usize, Vec<usize>> = FxHashMap::default();
 
         for (i, &save) in saves_to_check.iter().enumerate() {
-            let solves = solver::compute(
-                &self.legal_boards,
+            let solves = self.compute(
+                pattern,
                 &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
-                &pattern_bags(pattern),
-                true,
-                Physics::Jstris,
                 save,
             );
 
@@ -346,15 +348,13 @@ impl QBFinder {
 
 fn pattern_bags(pattern: &str) -> Vec<Bag> {
     let mut bags = Vec::new();
-    for line in pattern.lines() {
-        for bag in line.trim().split(",") {
-            let shapes = bag
-                .chars()
-                .map(parse_shape)
-                .collect::<Option<Vec<Shape>>>()
-                .unwrap();
-            bags.push(Bag::new(&shapes, bag.len() as u8));
-        }
+    for bag in pattern.split(",") {
+        let shapes = bag
+            .chars()
+            .map(parse_shape)
+            .collect::<Option<Vec<Shape>>>()
+            .unwrap();
+        bags.push(Bag::new(&shapes, bag.len() as u8));
     }
     bags
 }

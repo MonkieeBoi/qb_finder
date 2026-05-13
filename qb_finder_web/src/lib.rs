@@ -68,7 +68,11 @@ impl QBF {
                                 .into();
                             self.qbf.min_count(
                                 b,
-                                &(r.clone() + &solve_queue),
+                                &solve_queue
+                                    .lines()
+                                    .map(|line| format!("{},{}", r, line))
+                                    .collect::<Vec<_>>()
+                                    .join("\n"),
                                 &solve_queues.clone().iter().map(|q| r.clone() + q).collect(),
                                 saves,
                             )
@@ -134,7 +138,11 @@ impl QBF {
 
                 self.qbf.all_min_sets(
                     &board,
-                    &(r.clone() + &solve_queue),
+                    &solve_queue
+                        .lines()
+                        .map(|line| format!("{},{}", r, line))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
                     &solve_queues.clone().iter().map(|q| r.clone() + q).collect(),
                     saves,
                 )
