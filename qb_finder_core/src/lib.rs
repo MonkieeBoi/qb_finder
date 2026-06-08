@@ -16,11 +16,18 @@ use srs_4l::{
 use crate::minimals::{all_min_cover_sets, min_cover_size};
 use crate::queue::Bag;
 
+/// Contains (**All Solves**, **All Minimal Sets**, **Solve -> Equivalent Cover Map**).
+type SetupMinimals = (
+    Vec<BrokenBoard>,
+    Vec<Vec<usize>>,
+    FxHashMap<usize, Vec<usize>>,
+);
+
 pub struct QBFinder {
     legal_boards: FxHashSet<Board>,
     start: BrokenBoard,
-    hold: bool,
     physics: Physics,
+    pub hold: bool,
     pub skip_4p: bool,
     pub full_cover: bool,
 }
@@ -28,7 +35,7 @@ pub struct QBFinder {
 impl QBFinder {
     pub fn new(legal_boards: FxHashSet<Board>) -> QBFinder {
         QBFinder {
-            legal_boards: legal_boards,
+            legal_boards,
             start: BrokenBoard::from_garbage(0),
             hold: true,
             physics: Physics::Jstris,
@@ -81,7 +88,7 @@ impl QBFinder {
                 return 0;
             }
         }
-        return res;
+        res
     }
 
     pub fn compute(
@@ -99,7 +106,7 @@ impl QBFinder {
                     &self.legal_boards,
                     setup,
                     &pattern_bags(pattern),
-                    true,
+                    self.hold,
                     self.physics,
                     save,
                 )
@@ -125,7 +132,7 @@ impl QBFinder {
                 build_save
                     .map(|s| Bag::new(&[s], 1))
                     .into_iter()
-                    .chain(q.chars().take(p_count as usize).map(|c| {
+                    .chain(q.chars().take(p_count).map(|c| {
                         let shape = parse_shape(c).expect("Invalid solve pattern");
                         Bag::new(&[shape], 1)
                     }))
@@ -190,7 +197,7 @@ impl QBFinder {
             .map(|(_, s)| s)
             .collect();
 
-        if setups.len() == 0 && build_queue.replace(",", "").len() == 4 && build_save.is_none() {
+        if setups.is_empty() && build_queue.replace(",", "").len() == 4 && build_save.is_none() {
             for p in build_queue.replace(",", "").chars().unique() {
                 let (subsetup, sub_save) =
                     self.find(build_queue, parse_shape(p), solve_queue, saves, max_save);
@@ -269,11 +276,7 @@ impl QBFinder {
         pattern: &str,
         universe: &FxHashSet<String>,
         saves: &str,
-    ) -> (
-        Vec<BrokenBoard>,
-        Vec<Vec<usize>>,
-        FxHashMap<usize, Vec<usize>>,
-    ) {
+    ) -> SetupMinimals {
         let mut covering_queues = vec![];
         let mut primary_cover = FxHashSet::default();
         let pattern_xor = pattern.replace(',', "").bytes().fold(0, |acc, b| acc ^ b);
@@ -340,7 +343,7 @@ impl QBFinder {
             all_solves.extend(solves);
         }
         let all_sets = all_min_cover_sets(universe, &covering_queues);
-        let used_solves: FxHashSet<usize> = all_sets.iter().cloned().flatten().collect();
+        let used_solves: FxHashSet<usize> = all_sets.iter().flatten().cloned().collect();
         equivalent_map.retain(|k, _| used_solves.contains(k));
         (all_solves, all_sets, equivalent_map)
     }

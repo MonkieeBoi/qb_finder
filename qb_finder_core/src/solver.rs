@@ -15,7 +15,6 @@ fn scan(
     legal_boards: &FxHashSet<Board>,
     start: Board,
     bags: &[Bag],
-    _piece_count: usize,
     can_hold: bool,
     place_last: bool,
     physics: Physics,
@@ -28,7 +27,7 @@ fn scan(
 
     for (bag, i) in bags
         .iter()
-        .flat_map(|b| (0..b.count).into_iter().map(move |i| (b, i)))
+        .flat_map(|b| (0..b.count).map(move |i| (b, i)))
         .skip(1)
     {
         let mut next: ScanStage =
@@ -125,7 +124,6 @@ fn place(
     culled: &FxHashSet<Board>,
     start: BrokenBoard,
     bags: &[Bag],
-    _piece_count: usize,
     can_hold: bool,
     place_last: bool,
     physics: Physics,
@@ -136,7 +134,7 @@ fn place(
 
     for (bag, i) in bags
         .iter()
-        .flat_map(|b| (0..b.count).into_iter().map(move |i| (b, i)))
+        .flat_map(|b| (0..b.count).map(move |i| (b, i)))
         .skip(1)
     {
         let mut next: FxHashMap<BrokenBoard, SmallVec<[QueueState; 7]>> =
@@ -209,9 +207,9 @@ pub fn compute(
         return vec![start.clone()];
     }
 
-    let has_save = save.map_or(false, |s| bags.iter().any(|b| b.contains(s)));
+    let has_save = save.is_some_and(|s| bags.iter().any(|b| b.contains(s)));
 
-    let piece_count = bags.iter().map(|b| b.count as usize).sum();
+    let piece_count: usize = bags.iter().map(|b| b.count as usize).sum();
     let new_mino_count = piece_count as u32 * 4;
     let place_last = !has_save && start.board.0.count_ones() + new_mino_count <= 40;
 
@@ -219,7 +217,6 @@ pub fn compute(
         legal_boards,
         start.board,
         bags,
-        piece_count,
         can_hold,
         place_last,
         physics,
@@ -230,7 +227,6 @@ pub fn compute(
         &culled,
         start.clone(),
         bags,
-        piece_count,
         can_hold,
         place_last,
         physics,

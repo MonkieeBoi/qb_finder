@@ -1,8 +1,8 @@
 use dashmap::DashMap;
 use itertools::Itertools;
 use pyo3::prelude::*;
-use qb_finder_core::{QBFinder, parse_shape, solver};
-use rayon::prelude::*;
+use qb_finder_core::{QBFinder, expand_pattern, parse_shape, solver};
+use rayon::{iter, prelude::*};
 use rustc_hash::FxHashSet;
 use srs_4l::{
     board_list,
@@ -14,6 +14,9 @@ use std::{
     collections::{HashMap, HashSet},
     io::Cursor,
 };
+
+/// Contains (**All Solves**, **All Minimal Sets**, **All Groups of Equivalent Cover**).
+type PySetupMinimals = (Vec<String>, Vec<Vec<String>>, Vec<Vec<String>>);
 
 #[pyclass]
 struct QBSolver {
@@ -43,6 +46,10 @@ impl QBSolver {
         Ok(QBSolver {
             qbf: QBFinder::new(legal_boards),
         })
+    }
+
+    fn set_hold(&mut self, hold: bool) {
+        self.qbf.hold = hold;
     }
 
     #[pyo3(signature = (queue, save=None, garb=None))]
@@ -191,6 +198,68 @@ impl QBSolver {
         let res: HashMap<String, Vec<String>> = res.into_iter().collect();
 
         Ok(res)
+    }
+
+    #[pyo3(signature = (pattern, saves="", garb=None))]
+    fn all_minimals(
+        &self,
+        pattern: &str,
+        saves: &str,
+        garb: Option<u64>,
+    ) -> PyResult<PySetupMinimals> {
+        let mut res_sets = vec![];
+        let mut res_equiv = vec![];
+        let solve_queues: FxHashSet<String> = expand_pattern(pattern).into_iter().collect();
+
+        let (solves, covers, equiv) = self.qbf.all_min_sets(
+            &BrokenBoard::from_garbage(garb.unwrap_or(0)),
+            pattern,
+            &solve_queues,
+            saves,
+        );
+
+        let mut common: FxHashSet<usize> = covers[0].iter().cloned().collect();
+
+        for set in covers.iter().skip(1) {
+            let current_set: FxHashSet<usize> = set.iter().cloned().collect();
+            common.retain(|idx| current_set.contains(idx));
+        }
+
+        let res_common: Vec<String> = common
+            .iter()
+            .map(|&idx| {
+                let mut board_str = String::with_capacity(40);
+                solver::print(&solves[idx], &mut board_str);
+                board_str
+            })
+            .collect();
+
+        for set in covers {
+            res_sets.push(
+                set.iter()
+                    .filter(|idx| !common.contains(idx))
+                    .map(|&idx| {
+                        let mut board_str = String::with_capacity(40);
+                        solver::print(&solves[idx], &mut board_str);
+                        board_str
+                    })
+                    .collect(),
+            );
+        }
+
+        for (solve, equivalent_solves) in &equiv {
+            res_equiv.push(
+                iter::once(solve)
+                    .chain(equivalent_solves)
+                    .map(|&idx| {
+                        let mut board_str = String::with_capacity(40);
+                        solver::print(&solves[idx], &mut board_str);
+                        board_str
+                    })
+                    .collect(),
+            );
+        }
+        Ok((res_common, res_sets, res_equiv))
     }
 }
 

@@ -26,7 +26,7 @@ fn emoji_map(c: char) -> char {
 
 fn print_board(board: &BrokenBoard) {
     let mut str = String::with_capacity(40);
-    solver::print(&board, &mut str);
+    solver::print(board, &mut str);
     str = str
         .chars()
         .map(emoji_map)
@@ -60,7 +60,7 @@ fn main() {
             .expect("Failed to read line");
 
         let buildq = input.trim();
-        if buildq.len() < 1 {
+        if buildq.is_empty(){
             break;
         }
 
@@ -106,7 +106,7 @@ fn main() {
                         let r: String = ((xor
                             ^ b.pieces
                                 .iter()
-                                .map(|p| p.shape.name().chars().nth(0).unwrap_or_default())
+                                .map(|p| p.shape.name().chars().next().unwrap_or_default())
                                 .fold(0, |a, c| a ^ (c as u8)))
                             as char)
                             .into();
@@ -127,7 +127,7 @@ fn main() {
             if count > 0 {
                 println!("Min count: {}\n", count);
             } else {
-                println!("");
+                println!();
             }
         }
     }

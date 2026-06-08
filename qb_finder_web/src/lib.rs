@@ -44,8 +44,8 @@ impl QBF {
     }
 
     pub fn find(&self, build_queue: &str, solve_queue: &str, saves: &str) -> String {
-        let (setups, _) = self.qbf.find(build_queue, None, &solve_queue, saves, 1);
-        let solve_queues: FxHashSet<String> = expand_pattern(&solve_queue).into_iter().collect();
+        let (setups, _) = self.qbf.find(build_queue, None, solve_queue, saves, 1);
+        let solve_queues: FxHashSet<String> = expand_pattern(solve_queue).into_iter().collect();
         let build_xor = build_queue
             .replace(",", "")
             .chars()
@@ -77,7 +77,7 @@ impl QBF {
                                 saves,
                             )
                         }
-                        _ => self.qbf.min_count(b, &solve_queue, &solve_queues, saves),
+                        _ => self.qbf.min_count(b, solve_queue, &solve_queues, saves),
                     },
                 )
             })
@@ -87,7 +87,7 @@ impl QBF {
         let mut res = String::new();
 
         for (board, min_count) in &min_setups {
-            solver::print(&board, &mut res);
+            solver::print(board, &mut res);
             write!(res, ",{},", min_count).ok();
             base64_encode(&board.encode(), &mut res);
             res.push('|');
@@ -119,7 +119,7 @@ impl QBF {
         solver::print(&board, &mut res);
         res.push('|');
 
-        let solve_queues: FxHashSet<String> = expand_pattern(&solve_queue).into_iter().collect();
+        let solve_queues: FxHashSet<String> = expand_pattern(solve_queue).into_iter().collect();
 
         let (solves, covers, equiv) =
             if board.pieces.len() == build_queue.replace(",", "").len() - 1 {
@@ -148,7 +148,7 @@ impl QBF {
                 )
             } else {
                 self.qbf
-                    .all_min_sets(&board, &solve_queue, &solve_queues, saves)
+                    .all_min_sets(&board, solve_queue, &solve_queues, saves)
             };
 
         let mut common: FxHashSet<usize> = covers[0].iter().cloned().collect();

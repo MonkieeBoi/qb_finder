@@ -54,18 +54,17 @@ impl Bag {
 
             if queue.hold() == Some(shape) {
                 for swap_shape in Shape::ALL {
-                    if let Some(new) = queue.swap(self, swap_shape) {
-                        if !states.contains(&new) {
-                            states.push(new);
-                        }
-                    }
-                }
-            } else if can_hold {
-                if let Some(new) = queue.take(self, shape) {
-                    if !states.contains(&new) {
+                    if let Some(new) = queue.swap(self, swap_shape)
+                        && !states.contains(&new)
+                    {
                         states.push(new);
                     }
                 }
+            } else if can_hold
+                && let Some(new) = queue.take(self, shape)
+                && !states.contains(&new)
+            {
+                states.push(new);
             }
         }
 

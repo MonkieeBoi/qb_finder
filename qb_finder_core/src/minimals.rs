@@ -1,7 +1,7 @@
 use good_lp::{Expression, Solution, SolverModel, microlp, variables};
 use rustc_hash::FxHashSet;
 
-pub fn min_cover_size<T: PartialEq>(universe: &FxHashSet<T>, sets: &Vec<Vec<T>>) -> usize {
+pub fn min_cover_size<T: PartialEq>(universe: &FxHashSet<T>, sets: &[Vec<T>]) -> usize {
     let mut vars = variables!();
 
     let set_vars: Vec<_> = sets
@@ -36,9 +36,9 @@ pub fn min_cover_size<T: PartialEq>(universe: &FxHashSet<T>, sets: &Vec<Vec<T>>)
 
 pub fn all_min_cover_sets<T: PartialEq>(
     universe: &FxHashSet<T>,
-    sets: &Vec<Vec<T>>,
+    sets: &[Vec<T>],
 ) -> Vec<Vec<usize>> {
-    let min_size = min_cover_size(universe, &sets);
+    let min_size = min_cover_size(universe, sets);
     let mut res = Vec::new();
     if min_size == 0 {
         return res;
@@ -62,7 +62,7 @@ pub fn all_min_cover_sets<T: PartialEq>(
             let mut constraint_expr = Expression::from(0.0);
             for (i, set) in sets.iter().enumerate() {
                 if set.contains(element) {
-                    constraint_expr = constraint_expr + set_vars[i];
+                    constraint_expr += set_vars[i];
                 }
             }
             problem.add_constraint(constraint_expr.geq(1.0));
@@ -71,7 +71,7 @@ pub fn all_min_cover_sets<T: PartialEq>(
         for found in &found_sets {
             let mut current_cut_expr = Expression::from(0.0);
             for &idx in found {
-                current_cut_expr = current_cut_expr + set_vars[idx];
+                current_cut_expr += set_vars[idx];
             }
 
             let rhs = (found.len() as f64) - 1.0;
