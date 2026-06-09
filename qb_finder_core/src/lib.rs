@@ -16,6 +16,54 @@ use srs_4l::{
 use crate::minimals::{all_min_cover_sets, min_cover_size};
 use crate::queue::Bag;
 
+fn pattern_bags(pattern: &str) -> Vec<Bag> {
+    let mut bags = Vec::new();
+    for bag in pattern.split(",") {
+        let shapes = bag
+            .chars()
+            .map(parse_shape)
+            .collect::<Option<Vec<Shape>>>()
+            .unwrap();
+        bags.push(Bag::new(&shapes, bag.len() as u8));
+    }
+    bags
+}
+
+pub fn expand_pattern(pattern: &str) -> Vec<String> {
+    pattern
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .flat_map(|line| {
+            line.split(",")
+                .map(|group| {
+                    let len = group.len();
+                    group
+                        .chars()
+                        .permutations(len)
+                        .unique()
+                        .map(|p| p.into_iter().collect::<String>())
+                        .collect_vec()
+                })
+                .multi_cartesian_product()
+                .map(|prod| prod.join(""))
+        })
+        .collect()
+}
+
+pub fn parse_shape(shape: char) -> Option<Shape> {
+    match shape {
+        'I' => Some(Shape::I),
+        'J' => Some(Shape::J),
+        'L' => Some(Shape::L),
+        'O' => Some(Shape::O),
+        'S' => Some(Shape::S),
+        'T' => Some(Shape::T),
+        'Z' => Some(Shape::Z),
+        _ => None,
+    }
+}
+
 /// Contains (**All Solves**, **All Minimal Sets**, **Solve -> Equivalent Cover Map**).
 type SetupMinimals = (
     Vec<BrokenBoard>,
@@ -220,53 +268,78 @@ impl QBFinder {
         universe: &FxHashSet<String>,
         saves: &str,
     ) -> usize {
-        let mut covering_queues = vec![];
-        let mut primary_cover = FxHashSet::default();
-        let pattern_xor = pattern.replace(',', "").bytes().fold(0, |acc, b| acc ^ b);
-        let parsed_saves: Vec<Option<Shape>> = saves.chars().unique().map(parse_shape).collect();
+        let mut save_groups: Vec<Vec<Shape>> = saves
+            .split(",")
+            .map(|g| g.chars().unique().flat_map(parse_shape).collect())
+            .filter(|g: &Vec<_>| !g.is_empty())
+            .collect();
 
-        let saves_to_check = if parsed_saves.is_empty() {
-            vec![None]
-        } else {
-            parsed_saves
-        };
-
-        for (i, &save) in saves_to_check.iter().enumerate() {
-            if primary_cover.len() == universe.len() {
-                break;
-            }
-
-            let solves = self.compute(
-                pattern,
-                &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
-                save,
-            );
-
-            for solve in solves {
-                let cover: Vec<String> = solve
-                    .supporting_queues(self.physics)
-                    .iter()
-                    .flat_map(|&q| match save {
-                        Some(s) => q.push_last(s).unhold(),
-                        None => {
-                            let saved = (q
-                                .map(|s| s.name().as_bytes()[0])
-                                .fold(pattern_xor, |a, b| a ^ b))
-                                as char;
-                            parse_shape(saved)
-                                .map_or_else(|| q.unhold(), |s| q.push_last(s).unhold())
-                        }
-                    })
-                    .map(|q| q.to_string())
-                    .filter(|q| universe.contains(q) && (i == 0 || !primary_cover.contains(q)))
-                    .collect();
-
-                if i == 0 {
-                    primary_cover.extend(cover.clone());
-                }
-                covering_queues.push(cover);
-            }
+        if save_groups.is_empty() {
+            use Shape::*;
+            save_groups.push(vec![]);
+            save_groups.push(vec![I, J, L, O, S, T, Z]);
         }
+
+        let mut equivalent_map: FxHashMap<BrokenBoard, Vec<BrokenBoard>> = FxHashMap::default();
+        let mut setup_cover_map: FxHashMap<BrokenBoard, FxHashSet<String>> = FxHashMap::default();
+        let mut already_covered = FxHashSet::default();
+
+        for group in save_groups {
+            let mut new_cover = FxHashSet::default();
+            let group_saves = if group.is_empty() {
+                vec![None]
+            } else {
+                group.into_iter().map(|s| Some(s)).collect()
+            };
+            for save in group_saves {
+                let solves = self.compute(
+                    pattern,
+                    &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
+                    save,
+                );
+
+                let mut prev_solves: Vec<BrokenBoard> = vec![];
+
+                for solve in solves {
+                    let mut cover: Vec<String> = solve
+                        .supporting_queues(Physics::Jstris)
+                        .iter()
+                        .flat_map(|&q| match save {
+                            Some(s) => q.push_last(s).unhold(),
+                            None => q.unhold(),
+                        })
+                        .map(|q| q.to_string())
+                        .filter(|q| universe.contains(q) && !already_covered.contains(q))
+                        .collect();
+
+                    let mut cover_set: FxHashSet<String> = cover.iter().cloned().collect();
+
+                    for psolve in &prev_solves {
+                        if cover_set == setup_cover_map[&psolve] {
+                            cover.clear();
+                            cover_set.clear();
+                            equivalent_map
+                                .entry(psolve.clone())
+                                .or_default()
+                                .push(solve.clone());
+                            break;
+                        }
+                    }
+
+                    prev_solves.push(solve.clone());
+                    setup_cover_map
+                        .entry(solve)
+                        .or_default()
+                        .extend(cover.clone());
+                    new_cover.extend(cover);
+                }
+            }
+            already_covered.extend(new_cover);
+        }
+        let covering_queues: Vec<Vec<String>> = setup_cover_map
+            .values()
+            .map(|c| c.iter().cloned().collect())
+            .collect();
         min_cover_size(universe, &covering_queues)
     }
 
@@ -277,122 +350,95 @@ impl QBFinder {
         universe: &FxHashSet<String>,
         saves: &str,
     ) -> SetupMinimals {
-        let mut covering_queues = vec![];
-        let mut primary_cover = FxHashSet::default();
-        let pattern_xor = pattern.replace(',', "").bytes().fold(0, |acc, b| acc ^ b);
-        let parsed_saves: Vec<Option<Shape>> = saves.chars().unique().map(parse_shape).collect();
+        let mut save_groups: Vec<Vec<Shape>> = saves
+            .split(",")
+            .map(|g| g.chars().unique().flat_map(parse_shape).collect())
+            .filter(|g: &Vec<_>| !g.is_empty())
+            .collect();
 
-        let saves_to_check = if parsed_saves.is_empty() {
-            vec![None]
-        } else {
-            parsed_saves
-        };
-
-        let mut all_solves = vec![];
-        let mut equivalent_map: FxHashMap<usize, Vec<usize>> = FxHashMap::default();
-
-        for (i, &save) in saves_to_check.iter().enumerate() {
-            let solves = self.compute(
-                pattern,
-                &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
-                save,
-            );
-
-            let mut solve_cover_hashsets: Vec<FxHashSet<String>> = vec![];
-
-            for solve in &solves {
-                let mut cover: Vec<String> = solve
-                    .supporting_queues(Physics::Jstris)
-                    .iter()
-                    .flat_map(|&q| match save {
-                        Some(s) => q.push_last(s).unhold(),
-                        None => {
-                            let saved = (q
-                                .map(|s| s.name().as_bytes()[0])
-                                .fold(pattern_xor, |a, b| a ^ b))
-                                as char;
-                            parse_shape(saved)
-                                .map_or_else(|| q.unhold(), |s| q.push_last(s).unhold())
-                        }
-                    })
-                    .map(|q| q.to_string())
-                    .filter(|q| universe.contains(q) && (i == 0 || !primary_cover.contains(q)))
-                    .collect();
-
-                let mut cover_set: FxHashSet<String> = cover.iter().cloned().collect();
-
-                for (j, previous_solve) in solve_cover_hashsets.iter().enumerate() {
-                    if &cover_set == previous_solve {
-                        cover.clear();
-                        cover_set.clear();
-                        equivalent_map
-                            .entry(j + all_solves.len())
-                            .or_default()
-                            .push(covering_queues.len());
-                        break;
-                    }
-                }
-
-                solve_cover_hashsets.push(cover_set);
-
-                if i == 0 {
-                    primary_cover.extend(cover.clone());
-                }
-                covering_queues.push(cover);
-            }
-            all_solves.extend(solves);
+        if save_groups.is_empty() {
+            use Shape::*;
+            save_groups.push(vec![]);
+            save_groups.push(vec![I, J, L, O, S, T, Z]);
         }
+
+        let mut equivalent_map: FxHashMap<BrokenBoard, Vec<BrokenBoard>> = FxHashMap::default();
+        let mut setup_cover_map: FxHashMap<BrokenBoard, FxHashSet<String>> = FxHashMap::default();
+        let mut already_covered = FxHashSet::default();
+
+        for group in save_groups {
+            let mut new_cover = FxHashSet::default();
+            let group_saves = if group.is_empty() {
+                vec![None]
+            } else {
+                group.into_iter().map(|s| Some(s)).collect()
+            };
+            for save in group_saves {
+                let solves = self.compute(
+                    pattern,
+                    &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
+                    save,
+                );
+
+                let mut prev_solves: Vec<BrokenBoard> = vec![];
+
+                for solve in solves {
+                    let mut cover: Vec<String> = solve
+                        .supporting_queues(Physics::Jstris)
+                        .iter()
+                        .flat_map(|&q| match save {
+                            Some(s) => q.push_last(s).unhold(),
+                            None => q.unhold(),
+                        })
+                        .map(|q| q.to_string())
+                        .filter(|q| universe.contains(q) && !already_covered.contains(q))
+                        .collect();
+
+                    let mut cover_set: FxHashSet<String> = cover.iter().cloned().collect();
+
+                    for psolve in &prev_solves {
+                        if cover_set == setup_cover_map[&psolve] {
+                            cover.clear();
+                            cover_set.clear();
+                            equivalent_map
+                                .entry(psolve.clone())
+                                .or_default()
+                                .push(solve.clone());
+                            break;
+                        }
+                    }
+
+                    prev_solves.push(solve.clone());
+                    setup_cover_map
+                        .entry(solve)
+                        .or_default()
+                        .extend(cover.clone());
+                    new_cover.extend(cover);
+                }
+            }
+            already_covered.extend(new_cover);
+        }
+        let all_solves: Vec<BrokenBoard> = setup_cover_map.keys().cloned().collect();
+        let covering_queues: Vec<Vec<String>> = all_solves
+            .iter()
+            .map(|s| setup_cover_map[s].iter().cloned().collect())
+            .collect();
+        let solve_index_map: FxHashMap<_, usize> = all_solves
+            .iter()
+            .enumerate()
+            .map(|(i, solve)| (solve, i))
+            .collect();
         let all_sets = all_min_cover_sets(universe, &covering_queues);
         let used_solves: FxHashSet<usize> = all_sets.iter().flatten().cloned().collect();
+        let mut equivalent_map: FxHashMap<usize, Vec<usize>> = equivalent_map
+            .into_iter()
+            .map(|(key, vector)| {
+                let new_key = solve_index_map[&key];
+                let new_vector = vector.into_iter().map(|b| solve_index_map[&b]).collect();
+                (new_key, new_vector)
+            })
+            .collect();
         equivalent_map.retain(|k, _| used_solves.contains(k));
         (all_solves, all_sets, equivalent_map)
-    }
-}
-
-fn pattern_bags(pattern: &str) -> Vec<Bag> {
-    let mut bags = Vec::new();
-    for bag in pattern.split(",") {
-        let shapes = bag
-            .chars()
-            .map(parse_shape)
-            .collect::<Option<Vec<Shape>>>()
-            .unwrap();
-        bags.push(Bag::new(&shapes, bag.len() as u8));
-    }
-    bags
-}
-
-pub fn expand_pattern(pattern: &str) -> Vec<String> {
-    pattern
-        .lines()
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty())
-        .flat_map(|line| {
-            line.split(",")
-                .map(|group| {
-                    let len = group.len();
-                    group
-                        .chars()
-                        .permutations(len)
-                        .unique()
-                        .map(|p| p.into_iter().collect::<String>())
-                        .collect_vec()
-                })
-                .multi_cartesian_product()
-                .map(|prod| prod.join(""))
-        })
-        .collect()
-}
-
-pub fn parse_shape(shape: char) -> Option<Shape> {
-    match shape {
-        'I' => Some(Shape::I),
-        'J' => Some(Shape::J),
-        'L' => Some(Shape::L),
-        'O' => Some(Shape::O),
-        'S' => Some(Shape::S),
-        'T' => Some(Shape::T),
-        'Z' => Some(Shape::Z),
-        _ => None,
     }
 }
