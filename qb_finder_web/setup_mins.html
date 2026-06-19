@@ -51,16 +51,16 @@
           });
           return;
         }
-        let [start, equivs] = message.data.res.split("&");
-        console.log(message.data.res);
-        console.log(message.data.res.split("&"));
-        console.log(equivs);
+        let [start, equivs, saves] = message.data.res.split("&");
         let [board, commons, ...uniques] = start.split("|");
         equivs = equivs.split("|")
 
         document.querySelectorAll(".loading").forEach((el) => el.remove());
 
         header.appendChild(new MinoBoard(board));
+        const save_p = document.createElement("p")
+        save_p.innerText = saves;
+        header.appendChild(save_p);
 
         for (const solve of commons.split(",")) {
           const mino_board = new MinoBoard(solve);

@@ -121,35 +121,39 @@ impl QBF {
 
         let solve_queues: FxHashSet<String> = expand_pattern(solve_queue).into_iter().collect();
 
-        let (solves, covers, equiv) =
-            if board.pieces.len() == build_queue.replace(",", "").len() - 1 {
-                let xor = build_queue
-                    .replace(",", "")
-                    .chars()
-                    .fold(0, |a, c| a ^ (c as u8));
+        let build_save = if board.pieces.len() == build_queue.replace(",", "").len() - 1 {
+            let xor = build_queue
+                .replace(",", "")
+                .chars()
+                .fold(0, |a, c| a ^ (c as u8));
 
-                let r: String = ((xor
-                    ^ board
-                        .pieces
-                        .iter()
-                        .map(|p| p.shape.name().chars().nth(0).unwrap_or_default())
-                        .fold(0, |a, c| a ^ (c as u8))) as char)
-                    .into();
+            let r: String = ((xor
+                ^ board
+                    .pieces
+                    .iter()
+                    .map(|p| p.shape.name().chars().nth(0).unwrap_or_default())
+                    .fold(0, |a, c| a ^ (c as u8))) as char)
+                .into();
+            Some(r)
+        } else {
+            None
+        };
 
-                self.qbf.all_min_sets(
-                    &board,
-                    &solve_queue
-                        .lines()
-                        .map(|line| format!("{},{}", r, line))
-                        .collect::<Vec<_>>()
-                        .join("\n"),
-                    &solve_queues.clone().iter().map(|q| r.clone() + q).collect(),
-                    saves,
-                )
-            } else {
-                self.qbf
-                    .all_min_sets(&board, solve_queue, &solve_queues, saves)
-            };
+        let (solves, covers, equiv) = if let Some(r) = build_save.clone() {
+            self.qbf.all_min_sets(
+                &board,
+                &solve_queue
+                    .lines()
+                    .map(|line| format!("{},{}", r, line))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+                &solve_queues.clone().iter().map(|q| r.clone() + q).collect(),
+                saves,
+            )
+        } else {
+            self.qbf
+                .all_min_sets(&board, solve_queue, &solve_queues, saves)
+        };
 
         let mut common: FxHashSet<usize> = covers[0].iter().cloned().collect();
 
@@ -187,6 +191,24 @@ impl QBF {
         }
         if res.ends_with("|") {
             res.pop();
+        }
+
+        res.push('&');
+
+        if saves.contains(",") {
+            let solve_queue_prefixed = solve_queue
+                .split("\n")
+                .map(|g| format!("{},{}", build_save.clone().unwrap_or_default(), g))
+                .join("\n");
+
+            let save_stats = self.qbf.saves_stats(&board, &solve_queue_prefixed, saves);
+            let sum_stats: f64 = (save_stats.iter().sum::<usize>()) as f64 / 100.0;
+
+            res += &saves
+                .split(",")
+                .enumerate()
+                .map(|(i, g)| format!("{}: {:.2}%", g, (save_stats[i] as f64) / sum_stats))
+                .join("\n");
         }
         res
     }

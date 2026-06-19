@@ -86,6 +86,8 @@ textarea.can-resize {
     margin: 10px;
     padding: 20px;
     width: 200px;
+    margin-bottom: 5px;
+    padding-bottom: 5px;
 }
 
 #header h1 {

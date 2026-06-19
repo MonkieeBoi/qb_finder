@@ -139,6 +139,50 @@ impl QBFinder {
         res
     }
 
+    pub fn saves_stats(&self, setup: &BrokenBoard, solve_queue: &str, saves: &str) -> Vec<usize> {
+        let save_groups: Vec<Vec<Shape>> = saves
+            .split(",")
+            .map(|g| g.chars().unique().flat_map(parse_shape).collect())
+            .collect();
+
+        let mut res = vec![0; save_groups.len()];
+
+        let solve_queues: Vec<Vec<Bag>> = expand_pattern(solve_queue)
+            .into_iter()
+            .map(|q| {
+                dbg!(&q);
+                q.chars()
+                    .map(|c| {
+                        let shape = parse_shape(c).expect("Invalid solve pattern");
+                        Bag::new(&[shape], 1)
+                    })
+                    .collect()
+            })
+            .collect();
+
+        for q in solve_queues {
+            'group: for (j, group) in save_groups.iter().enumerate() {
+                for &save in group {
+                    if !solver::compute(
+                        &self.legal_boards,
+                        setup,
+                        &q,
+                        self.hold,
+                        self.physics,
+                        Some(save),
+                    )
+                    .is_empty()
+                    {
+                        res[j] += 1;
+                        break 'group;
+                    }
+                }
+            }
+        }
+
+        res
+    }
+
     pub fn compute(
         &self,
         queue: &str,
@@ -289,7 +333,7 @@ impl QBFinder {
             let group_saves = if group.is_empty() {
                 vec![None]
             } else {
-                group.into_iter().map(|s| Some(s)).collect()
+                group.into_iter().map(Some).collect()
             };
             for save in group_saves {
                 let solves = self.compute(
@@ -315,7 +359,7 @@ impl QBFinder {
                     let mut cover_set: FxHashSet<String> = cover.iter().cloned().collect();
 
                     for psolve in &prev_solves {
-                        if cover_set == setup_cover_map[&psolve] {
+                        if cover_set == setup_cover_map[psolve] {
                             cover.clear();
                             cover_set.clear();
                             equivalent_map
@@ -371,7 +415,7 @@ impl QBFinder {
             let group_saves = if group.is_empty() {
                 vec![None]
             } else {
-                group.into_iter().map(|s| Some(s)).collect()
+                group.into_iter().map(Some).collect()
             };
             for save in group_saves {
                 let solves = self.compute(
@@ -397,7 +441,7 @@ impl QBFinder {
                     let mut cover_set: FxHashSet<String> = cover.iter().cloned().collect();
 
                     for psolve in &prev_solves {
-                        if cover_set == setup_cover_map[&psolve] {
+                        if cover_set == setup_cover_map[psolve] {
                             cover.clear();
                             cover_set.clear();
                             equivalent_map
