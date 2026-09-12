@@ -36,18 +36,20 @@ async function main() {
         qbf.set_full_cover(query.cover);
 
         try {
-            let setups = qbf.find(
+            let res = qbf.find(
                 query.build_queue.toUpperCase(),
                 query.solve_queue.toUpperCase(),
                 query.save.toUpperCase(),
-            )
-                .split("|");
+            );
+
+            let [setups_str, saves] = res.split("&");
+            let setups = setups_str ? setups_str.split("|") : [];
 
             if (setups[0] == "") {
                 setups = [];
             }
 
-            postMessage({ kind: "ok", query, setups: setups });
+            postMessage({ kind: "ok", query, setups, saves: saves || "" });
         } catch (err) {
             console.error(err);
             postMessage({ kind: "err", err: err });

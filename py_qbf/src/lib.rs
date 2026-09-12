@@ -88,7 +88,7 @@ impl QBSolver {
         solve_queue: &str,
         saves: &str,
         skip_4p: bool,
-    ) -> PyResult<(Vec<String>, usize)> {
+    ) -> PyResult<(Vec<String>, Vec<usize>)> {
         self.qbf.skip_4p = skip_4p;
         let (setups, save_count) =
             py.detach(|| self.qbf.find(build_queue, None, solve_queue, saves, 1));

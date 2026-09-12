@@ -44,7 +44,7 @@ impl QBF {
     }
 
     pub fn find(&self, build_queue: &str, solve_queue: &str, saves: &str) -> String {
-        let (setups, _) = self.qbf.find(build_queue, None, solve_queue, saves, 1);
+        let (setups, stats) = self.qbf.find(build_queue, None, solve_queue, saves, 1);
         let solve_queues: FxHashSet<String> = expand_pattern(solve_queue).into_iter().collect();
         let build_xor = build_queue
             .replace(",", "")
@@ -93,7 +93,29 @@ impl QBF {
             res.push('|');
         }
 
-        res.pop();
+        if res.ends_with('|') {
+            res.pop();
+        }
+
+        res.push('&');
+
+        if saves.contains(",") {
+            let sum_stats: f64 = (stats.iter().sum::<usize>()) as f64 / 100.0;
+
+            res += &saves
+                .split(",")
+                .enumerate()
+                .map(|(i, g)| {
+                    let pct = if sum_stats > 0.0 {
+                        (stats[i] as f64) / sum_stats
+                    } else {
+                        0.0
+                    };
+                    format!("{}: {:.2}%", g, pct)
+                })
+                .join("\n");
+        }
+
         res
     }
 

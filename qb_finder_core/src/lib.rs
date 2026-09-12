@@ -2,7 +2,7 @@ pub mod minimals;
 pub mod queue;
 pub mod solver;
 
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
 
 use itertools::Itertools;
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
@@ -96,47 +96,50 @@ impl QBFinder {
         &self,
         setup: &BrokenBoard,
         solve_queues: &[Vec<Bag>],
-        saves: &[Shape],
-        cur_best: usize,
-    ) -> usize {
-        let p_save = saves.first().copied();
-        let s_saves = saves.get(1..).unwrap_or_default();
+        save_groups: &[Vec<Shape>],
+        cur_best: &[usize],
+    ) -> Option<Vec<usize>> {
+        let group_saves = |group: &[Shape]| -> Vec<Option<Shape>> {
+            if group.is_empty() {
+                vec![None]
+            } else {
+                group.iter().map(|&s| Some(s)).collect()
+            }
+        };
 
-        let mut res = 0;
+        let mut res = vec![0usize; save_groups.len()];
 
         for (i, q) in solve_queues.iter().enumerate() {
-            if res + (solve_queues.len() - i) < cur_best {
-                return 0;
-            }
-            if !solver::compute(
-                &self.legal_boards,
-                setup,
-                q,
-                self.hold,
-                self.physics,
-                p_save,
-            )
-            .is_empty()
-            {
-                res += 1;
-                continue;
+            if !res.is_empty() {
+                let remaining = solve_queues.len() - i;
+                let bumped = res[0] + remaining;
+                let beats_best = match bumped.cmp(&cur_best[0]) {
+                    std::cmp::Ordering::Greater => true,
+                    std::cmp::Ordering::Less => false,
+                    std::cmp::Ordering::Equal => res[1..] >= cur_best[1..],
+                };
+                if !beats_best {
+                    return None;
+                }
             }
 
-            if s_saves.iter().all(|&s| {
-                solver::compute(
-                    &self.legal_boards,
-                    setup,
-                    q,
-                    self.hold,
-                    self.physics,
-                    Some(s),
-                )
-                .is_empty()
-            }) {
-                return 0;
+            let mut solved = false;
+            for (j, group) in save_groups.iter().enumerate() {
+                if group_saves(group).iter().any(|&save| {
+                    !solver::compute(&self.legal_boards, setup, q, self.hold, self.physics, save)
+                        .is_empty()
+                }) {
+                    res[j] += 1;
+                    solved = true;
+                    break;
+                }
+            }
+            if !solved {
+                return None;
             }
         }
-        res
+
+        Some(res)
     }
 
     pub fn saves_stats(&self, setup: &BrokenBoard, solve_queue: &str, saves: &str) -> Vec<usize> {
@@ -214,7 +217,7 @@ impl QBFinder {
         solve_queue: &str,
         saves: &str,
         min_saves: usize,
-    ) -> (Vec<BrokenBoard>, usize) {
+    ) -> (Vec<BrokenBoard>, Vec<usize>) {
         let p_count = 11
             - (self.start.board.0.count_ones() / 4) as usize
             - build_queue.replace(",", "").len();
@@ -232,7 +235,10 @@ impl QBFinder {
             })
             .collect();
 
-        let parsed_saves: Vec<Shape> = saves.chars().unique().filter_map(parse_shape).collect();
+        let save_groups: Vec<Vec<Shape>> = saves
+            .split(",")
+            .map(|g| g.chars().unique().filter_map(parse_shape).collect())
+            .collect();
 
         let mut setups =
             if self.skip_4p && build_queue.replace(",", "").len() == 4 && build_save.is_none() {
@@ -262,40 +268,63 @@ impl QBFinder {
                 .collect();
         }
 
-        let primary_save_count = AtomicUsize::new(min_saves);
+        let zero_score = vec![0usize; save_groups.len()];
+        let mut baseline = zero_score.clone();
+        baseline[0] = min_saves;
 
-        let setup_saves: Vec<(usize, BrokenBoard)> = setups
+        let cur_best = Mutex::new(baseline.clone());
+
+        let setup_saves: Vec<(Vec<usize>, BrokenBoard)> = setups
             .into_par_iter()
             .map(|setup| {
-                let cur_best = primary_save_count.load(std::sync::atomic::Ordering::Relaxed);
-                let save_count = self.good_save_count(
-                    &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
-                    &solve_queues,
-                    &parsed_saves,
-                    cur_best,
-                );
-                if save_count > cur_best {
-                    primary_save_count.fetch_max(save_count, Ordering::Relaxed);
+                let snapshot = cur_best.lock().unwrap().clone();
+                let save_count = self
+                    .good_save_count(
+                        &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
+                        &solve_queues,
+                        &save_groups,
+                        &snapshot,
+                    )
+                    .unwrap_or_else(|| zero_score.clone());
+
+                if save_count > snapshot {
+                    let mut best = cur_best.lock().unwrap();
+                    if save_count > *best {
+                        *best = save_count.clone();
+                    }
                 }
+
                 (save_count, setup)
             })
             .collect();
 
-        let mut max_save = primary_save_count.load(Ordering::SeqCst);
+        let mut best = baseline;
+        for (score, _) in &setup_saves {
+            if score > &best {
+                best = score.clone();
+            }
+        }
 
         setups = setup_saves
             .into_iter()
-            .filter(|(s, _)| *s == max_save)
+            .filter(|(s, _)| *s == best)
             .map(|(_, s)| s)
             .collect();
 
+        let mut max_save = best;
+
         if setups.is_empty() && build_queue.replace(",", "").len() == 4 && build_save.is_none() {
             for p in build_queue.replace(",", "").chars().unique() {
-                let (subsetup, sub_save) =
-                    self.find(build_queue, parse_shape(p), solve_queue, saves, max_save);
+                let (subsetup, sub_save) = self.find(
+                    build_queue,
+                    parse_shape(p),
+                    solve_queue,
+                    saves,
+                    max_save[0],
+                );
                 if sub_save > max_save {
                     setups.clear();
-                    max_save = sub_save
+                    max_save = sub_save.clone()
                 }
                 if sub_save == max_save {
                     setups.extend(subsetup);

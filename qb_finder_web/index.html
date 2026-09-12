@@ -28,6 +28,7 @@
             <label><input id="skip_4p" type="checkbox">Skip 4p</label>
             <label><input id="cover" type="checkbox">Full Cover</label>
         </div>
+        <p id="saves" style="white-space: pre-line;"></p>
 
     </div>
 
@@ -53,6 +54,7 @@
         let skip_4p = document.getElementById("skip_4p");
         let cover = document.getElementById("cover");
         let save = document.getElementById("save");
+        let saves_el = document.getElementById("saves");
 
         worker.onmessage = message => {
             if (message.data.kind == "ready") {
@@ -80,12 +82,14 @@
 
             document.querySelectorAll(".loading").forEach((el) => el.hidden = true);
             let count = message.data.setups.length;
-            showSetups(message.data.setups, count);
+            showSetups(message.data.setups, count, message.data.saves);
 
             work = null;
         }
 
-        function showSetups(setups, count) {
+        function showSetups(setups, count, saves) {
+            saves_el.innerText = saves || "";
+
             if (setups.length == 0) {
                 solutions.append("no setups");
             }
@@ -125,6 +129,7 @@
                 cover: cover.checked
             };
             if (!document.getElementById('loading')) {
+                saves_el.innerText = "";
                 solutions.replaceChildren(...[...solutions.children].slice(0, 3));
                 document.querySelectorAll(".loading").forEach((el) => el.hidden = false);
                 worker.postMessage(work);
