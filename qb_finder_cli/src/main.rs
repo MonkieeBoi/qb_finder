@@ -35,7 +35,7 @@ fn print_board(board: &BrokenBoard) {
         .map(|chunk| chunk.iter().collect::<String>())
         .collect::<Vec<String>>()
         .join("\n");
-    println!("{str}")
+    println!("{str}");
 }
 
 fn main() {
@@ -98,9 +98,9 @@ fn main() {
                 (b, {
                     if b.pieces.len() < 3 {
                         0
-                    } else if b.pieces.len() == buildq.replace(",", "").len() - 1 {
+                    } else if b.pieces.len() == buildq.replace(',', "").len() - 1 {
                         let xor = buildq
-                            .replace(",", "")
+                            .replace(',', "")
                             .chars()
                             .fold(0, |a, c| a ^ (c as u8));
                         let r: String = ((xor
@@ -125,7 +125,7 @@ fn main() {
         {
             print_board(board);
             if count > 0 {
-                println!("Min count: {}\n", count);
+                println!("Min count: {count}\n");
             } else {
                 println!();
             }

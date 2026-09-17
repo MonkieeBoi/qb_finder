@@ -18,13 +18,13 @@ use crate::queue::Bag;
 
 fn pattern_bags(pattern: &str) -> Vec<Bag> {
     let mut bags = Vec::new();
-    for bag in pattern.split(",") {
+    for bag in pattern.split(',') {
         let shapes = bag
             .chars()
             .map(parse_shape)
             .collect::<Option<Vec<Shape>>>()
             .unwrap();
-        bags.push(Bag::new(&shapes, bag.len() as u8));
+        bags.push(Bag::new(&shapes, u8::try_from(bag.len()).unwrap_or(u8::MAX)));
     }
     bags
 }
@@ -32,10 +32,10 @@ fn pattern_bags(pattern: &str) -> Vec<Bag> {
 pub fn expand_pattern(pattern: &str) -> Vec<String> {
     pattern
         .lines()
-        .map(|l| l.trim())
+        .map(str::trim)
         .filter(|l| !l.is_empty())
         .flat_map(|line| {
-            line.split(",")
+            line.split(',')
                 .map(|group| {
                     let len = group.len();
                     group
@@ -51,6 +51,7 @@ pub fn expand_pattern(pattern: &str) -> Vec<String> {
         .collect()
 }
 
+#[must_use]
 pub fn parse_shape(shape: char) -> Option<Shape> {
     match shape {
         'I' => Some(Shape::I),
@@ -81,6 +82,7 @@ pub struct QBFinder {
 }
 
 impl QBFinder {
+    #[must_use]
     pub fn new(legal_boards: FxHashSet<Board>) -> QBFinder {
         QBFinder {
             legal_boards,
@@ -142,10 +144,13 @@ impl QBFinder {
         Some(res)
     }
 
+    /// # Panics
+    /// 
+    /// Will panic on invalid characters
     pub fn saves_stats(&self, setup: &BrokenBoard, solve_queue: &str, saves: &str) -> Vec<usize> {
         let save_groups: Vec<Vec<Shape>> = saves
-            .split(",")
-            .map(|g| g.chars().unique().flat_map(parse_shape).collect())
+            .split(',')
+            .map(|g| g.chars().unique().filter_map(parse_shape).collect())
             .collect();
 
         let mut res = vec![0; save_groups.len()];
@@ -153,7 +158,6 @@ impl QBFinder {
         let solve_queues: Vec<Vec<Bag>> = expand_pattern(solve_queue)
             .into_iter()
             .map(|q| {
-                dbg!(&q);
                 q.chars()
                     .map(|c| {
                         let shape = parse_shape(c).expect("Invalid solve pattern");
@@ -194,7 +198,7 @@ impl QBFinder {
     ) -> Vec<BrokenBoard> {
         queue
             .lines()
-            .map(|l| l.trim())
+            .map(str::trim)
             .filter(|l| !l.is_empty())
             .flat_map(|pattern| {
                 solver::compute(
@@ -210,6 +214,9 @@ impl QBFinder {
             .collect()
     }
 
+    /// # Panics
+    /// 
+    /// Will panic on invalid characters in queue
     pub fn find(
         &self,
         build_queue: &str,
@@ -220,7 +227,7 @@ impl QBFinder {
     ) -> (Vec<BrokenBoard>, Vec<usize>) {
         let p_count = 11
             - (self.start.board.0.count_ones() / 4) as usize
-            - build_queue.replace(",", "").len();
+            - build_queue.replace(',', "").len();
         let solve_queues: Vec<Vec<Bag>> = expand_pattern(solve_queue)
             .into_iter()
             .map(|q| {
@@ -236,12 +243,12 @@ impl QBFinder {
             .collect();
 
         let save_groups: Vec<Vec<Shape>> = saves
-            .split(",")
+            .split(',')
             .map(|g| g.chars().unique().filter_map(parse_shape).collect())
             .collect();
 
         let mut setups =
-            if self.skip_4p && build_queue.replace(",", "").len() == 4 && build_save.is_none() {
+            if self.skip_4p && build_queue.replace(',', "").len() == 4 && build_save.is_none() {
                 vec![]
             } else {
                 self.compute(build_queue, &self.start, build_save)
@@ -290,7 +297,7 @@ impl QBFinder {
                 if save_count > snapshot {
                     let mut best = cur_best.lock().unwrap();
                     if save_count > *best {
-                        *best = save_count.clone();
+                        (*best).clone_from(&save_count);
                     }
                 }
 
@@ -301,7 +308,7 @@ impl QBFinder {
         let mut best = baseline;
         for (score, _) in &setup_saves {
             if score > &best {
-                best = score.clone();
+                best.clone_from(score);
             }
         }
 
@@ -313,8 +320,8 @@ impl QBFinder {
 
         let mut max_save = best;
 
-        if setups.is_empty() && build_queue.replace(",", "").len() == 4 && build_save.is_none() {
-            for p in build_queue.replace(",", "").chars().unique() {
+        if setups.is_empty() && build_queue.replace(',', "").len() == 4 && build_save.is_none() {
+            for p in build_queue.replace(',', "").chars().unique() {
                 let (subsetup, sub_save) = self.find(
                     build_queue,
                     parse_shape(p),
@@ -324,7 +331,7 @@ impl QBFinder {
                 );
                 if sub_save > max_save {
                     setups.clear();
-                    max_save = sub_save.clone()
+                    max_save.clone_from(&sub_save);
                 }
                 if sub_save == max_save {
                     setups.extend(subsetup);
@@ -342,8 +349,8 @@ impl QBFinder {
         saves: &str,
     ) -> usize {
         let mut save_groups: Vec<Vec<Shape>> = saves
-            .split(",")
-            .map(|g| g.chars().unique().flat_map(parse_shape).collect())
+            .split(',')
+            .map(|g| g.chars().unique().filter_map(parse_shape).collect())
             .filter(|g: &Vec<_>| !g.is_empty())
             .collect();
 
@@ -381,7 +388,7 @@ impl QBFinder {
                             Some(s) => q.push_last(s).unhold(),
                             None => q.unhold(),
                         })
-                        .map(|q| q.to_string())
+                        .map(srs_4l::queue::Queue::to_string)
                         .filter(|q| universe.contains(q) && !already_covered.contains(q))
                         .collect();
 
@@ -424,8 +431,8 @@ impl QBFinder {
         saves: &str,
     ) -> SetupMinimals {
         let mut save_groups: Vec<Vec<Shape>> = saves
-            .split(",")
-            .map(|g| g.chars().unique().flat_map(parse_shape).collect())
+            .split(',')
+            .map(|g| g.chars().unique().filter_map(parse_shape).collect())
             .filter(|g: &Vec<_>| !g.is_empty())
             .collect();
 
@@ -463,7 +470,7 @@ impl QBFinder {
                             Some(s) => q.push_last(s).unhold(),
                             None => q.unhold(),
                         })
-                        .map(|q| q.to_string())
+                        .map(srs_4l::queue::Queue::to_string)
                         .filter(|q| universe.contains(q) && !already_covered.contains(q))
                         .collect();
 
@@ -502,7 +509,7 @@ impl QBFinder {
             .map(|(i, solve)| (solve, i))
             .collect();
         let all_sets = all_min_cover_sets(universe, &covering_queues);
-        let used_solves: FxHashSet<usize> = all_sets.iter().flatten().cloned().collect();
+        let used_solves: FxHashSet<usize> = all_sets.iter().flatten().copied().collect();
         let mut equivalent_map: FxHashMap<usize, Vec<usize>> = equivalent_map
             .into_iter()
             .map(|(key, vector)| {

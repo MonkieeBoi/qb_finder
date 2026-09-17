@@ -1,7 +1,8 @@
-use good_lp::{Expression, Solution, SolverModel, microlp, variables};
-use rustc_hash::FxHashSet;
+use std::collections::HashSet;
 
-pub fn min_cover_size<T: PartialEq>(universe: &FxHashSet<T>, sets: &[Vec<T>]) -> usize {
+use good_lp::{Expression, Solution, SolverModel, microlp, variables};
+
+pub fn min_cover_size<T: PartialEq, S: ::std::hash::BuildHasher>(universe: &HashSet<T, S>, sets: &[Vec<T>]) -> usize {
     let mut vars = variables!();
 
     let set_vars: Vec<_> = sets
@@ -34,8 +35,8 @@ pub fn min_cover_size<T: PartialEq>(universe: &FxHashSet<T>, sets: &[Vec<T>]) ->
     }
 }
 
-pub fn all_min_cover_sets<T: PartialEq>(
-    universe: &FxHashSet<T>,
+pub fn all_min_cover_sets<T: PartialEq, S: ::std::hash::BuildHasher>(
+    universe: &HashSet<T, S>,
     sets: &[Vec<T>],
 ) -> Vec<Vec<usize>> {
     let min_size = min_cover_size(universe, sets);

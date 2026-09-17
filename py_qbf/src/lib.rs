@@ -33,8 +33,7 @@ impl QBSolver {
         let legal_boards: FxHashSet<Board> = board_list::read(Cursor::new(bytes))
             .map_err(|e| {
                 PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                    "Failed to read boards: {}",
-                    e
+                    "Failed to read boards: {e}",
                 ))
             })?
             .into_iter()
@@ -107,15 +106,12 @@ impl QBSolver {
 
     #[pyo3(signature = (fifth))]
     fn bestsaves(&mut self, py: Python, fifth: &str) -> PyResult<HashMap<String, Vec<String>>> {
-        if fifth.len() != 2 {
-            return Ok(HashMap::new());
-        }
         fn bestsaves_queues(setup: &BrokenBoard, queue: &str, qbf: &QBFinder) -> Vec<String> {
             let pieces = "IJLOSZ";
             let mut res = HashSet::new();
             let save = Some(Shape::T);
             for (i, piece) in pieces.chars().enumerate() {
-                let q = format!("{},T,{}", queue, piece);
+                let q = format!("{queue},T,{piece}");
                 let solves = qbf.compute(
                     &q,
                     &BrokenBoard::from_garbage(setup.to_broken_bitboard().0),
@@ -139,8 +135,8 @@ impl QBSolver {
                                     None
                                 }
                             })
-                            .flat_map(|q| q.unhold())
-                            .map(|q| q.to_string())
+                            .flat_map(srs_4l::queue::Queue::unhold)
+                            .map(srs_4l::queue::Queue::to_string)
                             .collect::<Vec<_>>()
                     })
                     .collect();
@@ -155,6 +151,9 @@ impl QBSolver {
             }
             res.iter().cloned().collect::<Vec<String>>()
         }
+        if fifth.len() != 2 {
+            return Ok(HashMap::new());
+        }
         let pieces = "TIJLOSZ";
 
         let perms: Vec<_> = pieces.chars().permutations(3).collect();
@@ -164,14 +163,14 @@ impl QBSolver {
         py.detach(|| {
             perms.into_par_iter().for_each(|p3| {
                 let p3_str: String = p3.iter().collect();
-                let q = format!("{}{}", fifth, p3_str).chars().join(",");
+                let q = format!("{fifth}{p3_str}").chars().join(",");
 
                 for save in fifth.chars().chain(p3.iter().copied()).unique() {
                     let setups =
                         self.qbf
                             .compute(&q, &BrokenBoard::from_garbage(0), parse_shape(save));
                     let remaining: String = pieces.chars().filter(|c| !p3.contains(c)).collect();
-                    let qqq = format!("{},{}", save, remaining);
+                    let qqq = format!("{save},{remaining}");
 
                     for setup in setups {
                         let queues = bestsaves_queues(&setup, &qqq, &self.qbf);
@@ -218,10 +217,10 @@ impl QBSolver {
             saves,
         );
 
-        let mut common: FxHashSet<usize> = covers[0].iter().cloned().collect();
+        let mut common: FxHashSet<usize> = covers[0].iter().copied().collect();
 
         for set in covers.iter().skip(1) {
-            let current_set: FxHashSet<usize> = set.iter().cloned().collect();
+            let current_set: FxHashSet<usize> = set.iter().copied().collect();
             common.retain(|idx| current_set.contains(idx));
         }
 

@@ -21,6 +21,7 @@ pub struct QBF {
 #[wasm_bindgen]
 impl QBF {
     #[wasm_bindgen(constructor)]
+    #[must_use]
     pub fn init(legal_boards: Option<Uint8Array>) -> QBF {
         let boards: FxHashSet<Board> = match legal_boards {
             Some(arr) => board_list::read(Cursor::new(&arr.to_vec()))
@@ -47,10 +48,10 @@ impl QBF {
         let (setups, stats) = self.qbf.find(build_queue, None, solve_queue, saves, 1);
         let solve_queues: FxHashSet<String> = expand_pattern(solve_queue).into_iter().collect();
         let build_xor = build_queue
-            .replace(",", "")
+            .replace(',', "")
             .chars()
             .fold(0, |a, c| a ^ (c as u8));
-        let build_len = build_queue.replace(",", "").len();
+        let build_len = build_queue.replace(',', "").len();
         let min_setups: Vec<_> = setups
             .iter()
             .map(|b| {
@@ -70,7 +71,7 @@ impl QBF {
                                 b,
                                 &solve_queue
                                     .lines()
-                                    .map(|line| format!("{},{}", r, line))
+                                    .map(|line| format!("{r},{line}"))
                                     .collect::<Vec<_>>()
                                     .join("\n"),
                                 &solve_queues.clone().iter().map(|q| r.clone() + q).collect(),
@@ -88,7 +89,7 @@ impl QBF {
 
         for (board, min_count) in &min_setups {
             solver::print(board, &mut res);
-            write!(res, ",{},", min_count).ok();
+            write!(res, ",{min_count},").ok();
             base64_encode(&board.encode(), &mut res);
             res.push('|');
         }
@@ -99,11 +100,11 @@ impl QBF {
 
         res.push('&');
 
-        if saves.contains(",") {
+        if saves.contains(',') {
             let sum_stats: f64 = (stats.iter().sum::<usize>()) as f64 / 100.0;
 
             res += &saves
-                .split(",")
+                .split(',')
                 .enumerate()
                 .map(|(i, g)| {
                     let pct = if sum_stats > 0.0 {
@@ -111,7 +112,7 @@ impl QBF {
                     } else {
                         0.0
                     };
-                    format!("{}: {:.2}%", g, pct)
+                    format!("{g}: {pct:.2}%")
                 })
                 .join("\n");
         }
@@ -128,14 +129,12 @@ impl QBF {
     ) -> String {
         let mut res = String::new();
 
-        let bits = match base64_decode(setup) {
-            Some(b) => b,
-            None => return res,
+        let Some(bits) = base64_decode(setup) else {
+            return res;
         };
 
-        let board = match BrokenBoard::decode(&bits) {
-            Some(b) => b,
-            None => return res,
+        let Some(board) = BrokenBoard::decode(&bits) else {
+            return res;
         };
 
         solver::print(&board, &mut res);
@@ -143,9 +142,9 @@ impl QBF {
 
         let solve_queues: FxHashSet<String> = expand_pattern(solve_queue).into_iter().collect();
 
-        let build_save = if board.pieces.len() == build_queue.replace(",", "").len() - 1 {
+        let build_save = if board.pieces.len() == build_queue.replace(',', "").len() - 1 {
             let xor = build_queue
-                .replace(",", "")
+                .replace(',', "")
                 .chars()
                 .fold(0, |a, c| a ^ (c as u8));
 
@@ -166,7 +165,7 @@ impl QBF {
                 &board,
                 &solve_queue
                     .lines()
-                    .map(|line| format!("{},{}", r, line))
+                    .map(|line| format!("{r},{line}"))
                     .collect::<Vec<_>>()
                     .join("\n"),
                 &solve_queues.clone().iter().map(|q| r.clone() + q).collect(),
@@ -177,10 +176,10 @@ impl QBF {
                 .all_min_sets(&board, solve_queue, &solve_queues, saves)
         };
 
-        let mut common: FxHashSet<usize> = covers[0].iter().cloned().collect();
+        let mut common: FxHashSet<usize> = covers[0].iter().copied().collect();
 
         for set in covers.iter().skip(1) {
-            let current_set: FxHashSet<usize> = set.iter().cloned().collect();
+            let current_set: FxHashSet<usize> = set.iter().copied().collect();
             common.retain(|idx| current_set.contains(idx));
         }
 
@@ -211,15 +210,15 @@ impl QBF {
             res.pop();
             res.push('|');
         }
-        if res.ends_with("|") {
+        if res.ends_with('|') {
             res.pop();
         }
 
         res.push('&');
 
-        if saves.contains(",") {
+        if saves.contains(',') {
             let solve_queue_prefixed = solve_queue
-                .split("\n")
+                .split('\n')
                 .map(|g| format!("{},{}", build_save.clone().unwrap_or_default(), g))
                 .join("\n");
 
@@ -227,7 +226,7 @@ impl QBF {
             let sum_stats: f64 = (save_stats.iter().sum::<usize>()) as f64 / 100.0;
 
             res += &saves
-                .split(",")
+                .split(',')
                 .enumerate()
                 .map(|(i, g)| format!("{}: {:.2}%", g, (save_stats[i] as f64) / sum_stats))
                 .join("\n");
