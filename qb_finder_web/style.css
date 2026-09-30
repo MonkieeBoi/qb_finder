@@ -9,10 +9,8 @@ body {
 
 mino-board {
     display: block;
-
     width: 200px;
     white-space: pre-line;
-    cursor: pointer;
 }
 
 mino-board > svg {
@@ -27,14 +25,25 @@ mino-board rect[fill="#E7E7E2"] {
     fill: #3b4252;
 }
 
+#equiv mino-board.selected > svg {
+    box-shadow: 0 3px 0 0 #eceff4;
+}
+
+mino-board.filter-selected > svg {
+    box-shadow: 0 3px 0 0 #ebcb8b;
+}
+
 #solutions, #common, #unique > div, #equiv > div {
     display: grid;
     grid: auto-flow / repeat(auto-fill, 200px);
     gap: 10px;
     justify-content: space-evenly;
     place-items: center;
-
     padding: 10px;
+}
+
+#unique > h2 {
+    cursor: copy;
 }
 
 #solutions > mino-board {

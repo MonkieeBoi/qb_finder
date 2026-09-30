@@ -19,7 +19,7 @@
     </header>
 
     <section>
-      <h2>Common</h2>
+      <h2 style="cursor: copy">Common</h2>
       <div id="common">
         <div class="loading"></div>
         <div class="loading"></div>
@@ -33,7 +33,9 @@
     <script src="mino-board.js"></script>
     <script src="pkg/qb_finder_web.js"></script>
     <script type="module">
-      const { encoder, Field } = await import("https://cdn.jsdelivr.net/npm/tetris-fumen/+esm");
+      const { encoder, Field } = await import(
+        "https://cdn.jsdelivr.net/npm/tetris-fumen/+esm"
+      );
       let worker = new Worker("worker.js");
       let header = document.getElementById("header");
       let common = document.getElementById("common");
@@ -41,33 +43,144 @@
       let equiv = document.getElementById("equiv");
       const params = new URLSearchParams(window.location.search);
 
-      worker.onmessage = message => {
+      worker.onmessage = (message) => {
         if (message.data.kind == "ready") {
           worker.postMessage({
             setup: params.get("setup"),
             build_queue: params.get("build_queue"),
             solve_queue: params.get("solve_queue"),
-            save: params.get("save")
+            save: params.get("save"),
           });
           return;
         }
         let [start, equivs, saves] = message.data.res.split("&");
         let [board, commons, ...uniques] = start.split("|");
-        equivs = equivs.split("|")
+        equivs = equivs.split("|");
 
         document.querySelectorAll(".loading").forEach((el) => el.remove());
 
-        header.appendChild(new MinoBoard(board));
-        const save_p = document.createElement("p")
+        const headerBoard = new MinoBoard(board);
+        headerBoard.addEventListener("click", (e) => {
+          if (e.ctrlKey) {
+            e.preventDefault();
+            navigator.clipboard.writeText(
+              encoder.encode([
+                {
+                  field: Field.create(board.replaceAll("G", "X")),
+                  flags: { lock: false },
+                },
+              ]),
+            );
+          }
+        });
+        header.appendChild(headerBoard);
+
+        const save_p = document.createElement("p");
         save_p.innerText = saves;
         header.appendChild(save_p);
 
-        for (const solve of commons.split(",")) {
+        const solveToGroup = new Map();
+        for (const [i, solvesStr] of equivs.entries()) {
+          if (!solvesStr) continue;
+          for (const solve of solvesStr.split(",")) {
+            solveToGroup.set(solve, i);
+          }
+        }
+
+        function createBoard(solve, forceGroup) {
+          const groupIdx =
+            forceGroup !== undefined ? forceGroup : solveToGroup.get(solve);
           const mino_board = new MinoBoard(solve);
+          mino_board.dataset.solve = solve;
+          if (groupIdx !== undefined) {
+            mino_board.dataset.equivGroup = groupIdx;
+          }
           mino_board.addEventListener("click", (e) => {
-              navigator.clipboard.writeText(encoder.encode([{field:Field.create(solve.replaceAll("G","X")),flags:{lock:false}}]));
+            if (e.ctrlKey) {
+              e.preventDefault();
+              navigator.clipboard.writeText(
+                encoder.encode([
+                  {
+                    field: Field.create(
+                      mino_board.dataset.solve.replaceAll("G", "X"),
+                    ),
+                    flags: { lock: false },
+                  },
+                ]),
+              );
+            } else if (mino_board.dataset.equivGroup !== undefined) {
+              const g = mino_board.dataset.equivGroup;
+              const newSolve = mino_board.dataset.solve;
+              document
+                .querySelectorAll(
+                  `#common [data-equiv-group="${g}"], #unique [data-equiv-group="${g}"]`,
+                )
+                .forEach((b) => {
+                  b.dataset.solve = newSolve;
+                  b.setup(newSolve);
+                });
+              document
+                .querySelectorAll(`#equiv [data-equiv-group="${g}"]`)
+                .forEach((b) => {
+                  b.classList.toggle("selected", b.dataset.solve === newSolve);
+                });
+            }
           });
-          common.appendChild(mino_board);
+          return mino_board;
+        }
+
+        function copyFumens(container) {
+          const boards = container.querySelectorAll("mino-board");
+          const fumens = Array.from(boards)
+            .map((b) =>
+              encoder.encode([
+                {
+                  field: Field.create(b.dataset.solve.replaceAll("G", "X")),
+                  flags: { lock: false },
+                },
+              ]),
+            )
+            .join("\n");
+          navigator.clipboard.writeText(fumens);
+        }
+
+        common.parentElement
+          .querySelector("h2")
+          .addEventListener("click", () => copyFumens(common));
+
+        for (const solve of commons.split(",")) {
+          if (!solve) continue;
+          common.appendChild(createBoard(solve));
+        }
+
+        const activeFilters = new Set();
+        const uniqueSets = [];
+
+        function getFilterId(board) {
+          return board.dataset.equivGroup !== undefined
+            ? `group:${board.dataset.equivGroup}`
+            : board.dataset.solve;
+        }
+
+        function updateFilters() {
+          for (const b of unique.querySelectorAll("mino-board")) {
+            b.classList.toggle(
+              "filter-selected",
+              activeFilters.has(getFilterId(b)),
+            );
+          }
+          for (const { label, container } of uniqueSets) {
+            const containerFilterIds = new Set(
+              Array.from(container.querySelectorAll("mino-board")).map(
+                getFilterId,
+              ),
+            );
+            const matches = Array.from(activeFilters).every((fId) =>
+              containerFilterIds.has(fId),
+            );
+            label.style.display = matches ? "" : "none";
+            container.style.display = matches ? "" : "none";
+          }
         }
 
         for (const [i, solves] of uniques.entries()) {
@@ -77,15 +190,26 @@
           let container = document.createElement("div");
           let label = document.createElement("h2");
           label.textContent = `Set ${i + 1}`;
+          label.addEventListener("click", () => copyFumens(container));
           unique.appendChild(label);
           for (const solve of solves.split(",")) {
-            const mino_board = new MinoBoard(solve);
-            mino_board.addEventListener("click", (e) => {
-                navigator.clipboard.writeText(encoder.encode([{field:Field.create(solve.replaceAll("G","X")),flags:{lock:false}}]));
+            if (!solve) continue;
+            const board = createBoard(solve);
+            board.addEventListener("click", (e) => {
+              if (!e.ctrlKey) {
+                const fId = getFilterId(board);
+                if (activeFilters.has(fId)) {
+                  activeFilters.delete(fId);
+                } else {
+                  activeFilters.add(fId);
+                }
+                updateFilters();
+              }
             });
-            container.appendChild(mino_board);
+            container.appendChild(board);
           }
           unique.appendChild(container);
+          uniqueSets.push({ label, container });
         }
 
         for (const [i, solves] of equivs.entries()) {
@@ -96,16 +220,19 @@
           let label = document.createElement("h2");
           label.textContent = `Equivalent solves ${i + 1}`;
           equiv.appendChild(label);
+          let isFirst = true;
           for (const solve of solves.split(",")) {
-            const mino_board = new MinoBoard(solve);
-            mino_board.addEventListener("click", (e) => {
-                navigator.clipboard.writeText(encoder.encode([{field:Field.create(solve.replaceAll("G","X")),flags:{lock:false}}]));
-            });
-            container.appendChild(mino_board);
+            if (!solve) continue;
+            const board = createBoard(solve, i);
+            if (isFirst) {
+              board.classList.add("selected");
+              isFirst = false;
+            }
+            container.appendChild(board);
           }
           equiv.appendChild(container);
         }
-      }
+      };
     </script>
   </body>
 </html>

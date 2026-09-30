@@ -2,7 +2,6 @@ class MinoBoard extends HTMLElement {
 
     static colors = {
         'background': '#F3F3ED',
-        'shadow': '#E7E7E2',
         'regular': {
             'G': '#686868',
             'I': '#41AFDE',
@@ -76,12 +75,13 @@ class MinoBoard extends HTMLElement {
         this.setAttribute('data-field', this.field.join('|'));
 
         const width = 200;
-        const height = 20 * (this.field.length + 1);
+        const height = 20 * this.field.length + 4;
 
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.setAttribute('width', width);
         svg.setAttribute('height', height);
         svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        svg.style.display = 'block';
         this.appendChild(svg);
 
         const getMino = (field, row, col) => field[row]?.charAt(col);
@@ -112,16 +112,12 @@ class MinoBoard extends HTMLElement {
 
         for (const [row, col, mino] of minos(this.field)) {
             const color = MinoBoard.colors['top'][mino];
-
-            svg.appendChild(rect(20 * col + 5, 20 * (row + 1) + 7, 20, 20,
-                MinoBoard.colors['shadow']));
-
-            svg.appendChild(rect(20 * col, 20 * (row + 1) - 4, 20, 4, color));
+            svg.appendChild(rect(20 * col, 20 * row, 20, 4, color));
         }
 
         for (const [row, col, mino] of minos(this.field)) {
             const color = MinoBoard.colors['regular'][mino];
-            svg.appendChild(rect(20 * col, 20 * (row + 1), 20, 20, color));
+            svg.appendChild(rect(20 * col, 20 * row + 4, 20, 20, color));
         }
     }
 }
