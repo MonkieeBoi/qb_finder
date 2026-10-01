@@ -13,6 +13,9 @@ use srs_4l::{
 };
 use wasm_bindgen::prelude::wasm_bindgen;
 
+#[cfg(feature = "threads")]
+pub use wasm_bindgen_rayon::init_thread_pool;
+
 #[wasm_bindgen]
 pub struct QBF {
     qbf: QBFinder,

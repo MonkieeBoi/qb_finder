@@ -9,6 +9,7 @@
 
     <link rel="icon" href="https://monkieeboi.github.io/pc/favicon.ico" />
     <link rel="stylesheet" href="style.css" />
+    <script src="coi-serviceworker.min.js"></script>
     <script src="mino-board.js"></script>
 </head>
 
@@ -40,12 +41,10 @@
         <div class="loading" hidden></div>
     </div>
 
-    <script src="pkg/qb_finder_web.js"></script>
-
     <script type="module">
         const { encoder, Field } = await import("https://cdn.jsdelivr.net/npm/tetris-fumen/+esm");
 
-        let worker = new Worker("worker.js");
+        let worker = new Worker("worker.js", { type: "module" });
         let work = null;
 
         let build_queue = document.getElementById("build_queue");

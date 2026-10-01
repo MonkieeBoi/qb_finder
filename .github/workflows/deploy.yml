@@ -20,17 +20,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
+        run: |
+          rustup toolchain install
+          rustc --version
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build WASM
-        run: |
-          cd qb_finder_web
-          wasm-pack build --target no-modules --out-dir pkg
+        run: bash qb_finder_web/build.sh
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

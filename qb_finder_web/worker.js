@@ -1,5 +1,3 @@
-importScripts("pkg/qb_finder_web.js");
-
 async function main() {
     let legal_boards;
 
@@ -12,8 +10,18 @@ async function main() {
         console.log("couldn't load legal boards");
     }
 
-    await wasm_bindgen("pkg/qb_finder_web_bg.wasm");
-    let qbf = new wasm_bindgen.QBF(legal_boards);
+    const threaded = self.crossOriginIsolated;
+    const mod = await import(
+        threaded ? "./pkg-mt/qb_finder_web.js" : "./pkg-st/qb_finder_web.js"
+    );
+    await mod.default();
+    if (threaded) {
+        const n = navigator.hardwareConcurrency;
+        console.log(`starting thread pool with ${n} threads`);
+        await mod.initThreadPool(n);
+    }
+
+    let qbf = new mod.QBF(legal_boards);
     postMessage({ kind: "ready" });
 
     onmessage = (msg) => {
