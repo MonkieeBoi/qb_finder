@@ -104,18 +104,13 @@ impl QBF {
         res.push('&');
 
         if saves.contains(',') {
-            let sum_stats: f64 = (stats.iter().sum::<usize>()) as f64 / 100.0;
+            let sum_stats: usize = stats.iter().sum();
 
             res += &saves
                 .split(',')
                 .enumerate()
                 .map(|(i, g)| {
-                    let pct = if sum_stats > 0.0 {
-                        (stats[i] as f64) / sum_stats
-                    } else {
-                        0.0
-                    };
-                    format!("{g}: {pct:.2}%")
+                    format!("{}: {}/{}", g, stats[i], sum_stats)
                 })
                 .join("\n");
         }
@@ -226,12 +221,12 @@ impl QBF {
                 .join("\n");
 
             let save_stats = self.qbf.saves_stats(&board, &solve_queue_prefixed, saves);
-            let sum_stats: f64 = (save_stats.iter().sum::<usize>()) as f64 / 100.0;
+            let sum_stats: usize = save_stats.iter().sum();
 
             res += &saves
                 .split(',')
                 .enumerate()
-                .map(|(i, g)| format!("{}: {:.2}%", g, (save_stats[i] as f64) / sum_stats))
+                .map(|(i, g)| format!("{}: {}/{}", g, save_stats[i] , sum_stats))
                 .join("\n");
         }
         res
